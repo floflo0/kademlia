@@ -1,9 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"kademlia/internal/logging"
+	"log/slog"
 )
 
 func main() {
-	fmt.Println("Hello, World!")
+	logging.InitLogger()
+
+	slog.Info("Hello, World!")
 }
