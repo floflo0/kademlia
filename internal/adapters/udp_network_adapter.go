@@ -1,0 +1,121 @@
+package adapters
+
+import (
+	"fmt"
+	"kademlia/internal/core/ports"
+	"net"
+	"time"
+)
+
+type UdpNetworkAdapter struct{}
+
+type udpListenConnection struct {
+	connection *net.UDPConn
+}
+
+type udpDialConnection struct {
+	connection *net.UDPConn
+}
+
+const maxMessageSize = 4096
+
+func NewUDPNetworkAdapter() *UdpNetworkAdapter {
+	return &UdpNetworkAdapter{}
+}
+
+func (*UdpNetworkAdapter) Listen(address ports.Address) (ports.ListenConnection, error) {
+	addr, err := addressToUdpAdrr(address)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		return nil, err
+	}
+	connection := &udpListenConnection{
+		connection: conn,
+	}
+	return connection, nil
+}
+
+func (*UdpNetworkAdapter) Dial(address ports.Address) (ports.DialConnection, error) {
+	addr, err := addressToUdpAdrr(address)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	connection := &udpDialConnection{
+		connection: conn,
+	}
+	return connection, nil
+}
+
+func (c *udpListenConnection) SendTo(address ports.Address, payload []byte) error {
+	addr, err := addressToUdpAdrr(address)
+	if err != nil {
+		return err
+	}
+	_, err = c.connection.WriteToUDP(payload, addr)
+	return err
+}
+
+func (c *udpListenConnection) Receive() ([]byte, *ports.Address, error) {
+	buffer := make([]byte, maxMessageSize)
+	n, addr, err := c.connection.ReadFromUDP(buffer)
+	if err != nil {
+		return nil, nil, err
+	}
+	address := udpAddrtoAddress(addr)
+	payload := buffer[:n]
+	return payload, &address, nil
+}
+
+func (c *udpListenConnection) Close() error {
+	return c.connection.Close()
+}
+
+func (c *udpDialConnection) Send(payload []byte) error {
+	_, err := c.connection.Write(payload)
+	return err
+}
+
+func (c *udpDialConnection) Receive(timeoutMiliseconds uint32) ([]byte, error) {
+	buffer := make([]byte, maxMessageSize)
+	deadline := time.Now().Add(time.Duration(timeoutMiliseconds) * time.Millisecond)
+	err := c.connection.SetReadDeadline(deadline)
+	if err != nil {
+		return nil, err
+	}
+	n, err := c.connection.Read(buffer)
+	if err != nil {
+		return nil, err
+	}
+	return buffer[:n], nil
+}
+
+func (c *udpDialConnection) Close() error {
+	return c.connection.Close()
+}
+
+func addressToUdpAdrr(address ports.Address) (*net.UDPAddr, error) {
+	ip := net.ParseIP(address.IP)
+	if ip == nil {
+		return nil, fmt.Errorf("failed to parse IP address: %q", address.IP)
+	}
+	addr := &net.UDPAddr{
+		IP:   ip,
+		Port: address.Port,
+	}
+	return addr, nil
+}
+
+func udpAddrtoAddress(addr *net.UDPAddr) ports.Address {
+	return ports.Address{
+		IP:   addr.IP.String(),
+		Port: addr.Port,
+	}
+}
