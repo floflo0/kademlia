@@ -20,6 +20,9 @@ jobs:
       - name: Build
         run: go build -v -o kademlia ./cmd/kademlia
 
+      - name: Tests
+        run: go test -v -race ./...
+
       - name: Vet
         run: go vet ./...
 

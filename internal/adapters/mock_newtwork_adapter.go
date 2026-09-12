@@ -1,7 +1,6 @@
 package adapters
 
 import (
-	"errors"
 	"kademlia/internal/core/ports"
 	"sync"
 )
@@ -47,7 +46,7 @@ func (n *MockNetworkAdapter) Listen(address ports.Address) (ports.ListenConnecti
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if _, exists := n.listeners[address]; exists {
-		return nil, errors.New("address already in use")
+		return nil, ErrAddressAlreadyInUse
 	}
 	messagesChannel := make(chan message, listenersMessageChannelCapacity)
 	n.listeners[address] = messagesChannel
@@ -69,7 +68,7 @@ func (n *MockNetworkAdapter) Dial(address ports.Address) (ports.DialConnection, 
 	}
 	n.nextPort++
 	if _, exists := n.listeners[assignedAddress]; exists {
-		return nil, errors.New("address already in use")
+		return nil, ErrAddressAlreadyInUse
 	}
 	messagesChannel := make(chan message, listenersMessageChannelCapacity)
 	n.listeners[assignedAddress] = messagesChannel
@@ -95,17 +94,17 @@ func (n *MockNetworkAdapter) send(from ports.Address, to ports.Address, payload 
 		case listener <- message:
 			return nil
 		default:
-			return errors.New("message queue is full")
+			return ErrMessageQueueFull
 		}
 	}
-	return errors.New("destination address not found")
+	return ErrDestinationNotFound
 }
 
 func (c *mockListenConnection) SendTo(address ports.Address, payload []byte) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c.closed {
-		return errors.New("use of closed network connection")
+		return ErrClosedNetworkConnection
 	}
 	return c.network.send(c.address, address, payload)
 }
@@ -115,11 +114,11 @@ func (c *mockListenConnection) Receive() ([]byte, *ports.Address, error) {
 	closed := c.closed
 	c.mu.RUnlock()
 	if closed {
-		return nil, nil, errors.New("use of closed network connection")
+		return nil, nil, ErrClosedNetworkConnection
 	}
 	message, ok := <-c.messagesChannel
 	if !ok {
-		return nil, nil, errors.New("connection closed")
+		return nil, nil, ErrConnectionClosed
 	}
 	return message.payload, &message.from, nil
 }
@@ -129,7 +128,7 @@ func (c *mockListenConnection) Close() error {
 	defer c.mu.Unlock()
 
 	if c.closed {
-		return errors.New("use of closed network connection")
+		return ErrClosedNetworkConnection
 	}
 	c.closed = true
 
@@ -144,7 +143,7 @@ func (c *mockDialConnection) Send(payload []byte) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c.closed {
-		return errors.New("use of closed network connection")
+		return ErrClosedNetworkConnection
 	}
 	return c.network.send(c.address, c.destinationAddress, payload)
 }
@@ -154,11 +153,11 @@ func (c *mockDialConnection) Receive(timeoutMiliseconds uint32) ([]byte, error) 
 	closed := c.closed
 	c.mu.RUnlock()
 	if closed {
-		return nil, errors.New("use of closed network connection")
+		return nil, ErrClosedNetworkConnection
 	}
 	message, ok := <-c.messagesChannel
 	if !ok {
-		return nil, errors.New("connection closed")
+		return nil, ErrConnectionClosed
 	}
 	if message.from != c.destinationAddress {
 		panic("invalid source address")
@@ -170,7 +169,7 @@ func (c *mockDialConnection) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closed {
-		return errors.New("use of closed network connection")
+		return ErrClosedNetworkConnection
 	}
 	c.closed = true
 
