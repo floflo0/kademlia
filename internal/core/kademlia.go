@@ -36,7 +36,7 @@ func (kademlia *Kademlia) LookupContact(target *KademliaID) ContactCandidates {
 	var net Network
 	var noNewClosest bool
 	var probed int
-	// TODO: No RPC response,
+	// TODO: No RPC response reaction,
 
 	var alreadyContacted []Contact
 
@@ -106,7 +106,7 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, []Contact, bool) {
 	}
 
 	targetID := NewKademliaID(hash)
-	closest := kademlia.LookupContact(targetID)
+	closest := kademlia.LookupContact(targetID).contacts
 
 	// TODO: Send RPCs FIND_VALUE to the closest nodes until
 	// obtaining the value or running out of contacts.
@@ -131,7 +131,7 @@ func (kademlia *Kademlia) Store(data []byte) string {
 	targetNodes := kademlia.LookupContact(keyID)
 
 	// 4. Send a STORE RPC to each of the closest k nodes
-	for _, contact := range targetNodes {
+	for _, contact := range targetNodes.contacts {
 		// go kademlia.Network.SendStoreRPC(&contact, keyHex, data)
 		_ = contact
 	}
