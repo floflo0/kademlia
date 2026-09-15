@@ -1,15 +1,21 @@
 package cli
 
 import (
-	"fmt"
 	"kademlia/config"
-	"kademlia/internal/shell"
-	"log/slog"
 
 	"github.com/spf13/cobra"
 )
 
-func NewRootCmd(commandName string, shell shell.Shell) *cobra.Command {
+type Config struct {
+	Host string
+	Port int
+}
+
+func NewRootCommand(
+	commandName string,
+	start func(config Config) error,
+) *cobra.Command {
+	var appConfig Config
 	rootCommand := &cobra.Command{
 		Use:                   commandName + " [-h] [--host host] [-p port]",
 		Short:                 "Kademlia node",
@@ -18,21 +24,21 @@ func NewRootCmd(commandName string, shell shell.Shell) *cobra.Command {
 		DisableFlagsInUseLine: true,
 		Args:                  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			host, err := cmd.Flags().GetString("host")
-			if err != nil {
-				return fmt.Errorf("failed to get host parameter: %w", err)
-			}
-
-			port, err := cmd.Flags().GetInt("port")
-			if err != nil {
-				return fmt.Errorf("failed to get port parameter: %w", err)
-			}
-
-			slog.Debug("Parsed command line", "host", host, "port", port)
-			return shell.Run()
+			return start(appConfig)
 		},
 	}
-	rootCommand.Flags().String("host", config.DefaultHost, "the host")
-	rootCommand.Flags().IntP("port", "p", config.DefaultPort, "the port")
+	rootCommand.Flags().StringVar(
+		&appConfig.Host,
+		"host",
+		config.DefaultHost,
+		"the host",
+	)
+	rootCommand.Flags().IntVarP(
+		&appConfig.Port,
+		"port",
+		"p",
+		config.DefaultPort,
+		"the port",
+	)
 	return rootCommand
 }

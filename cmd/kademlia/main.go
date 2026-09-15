@@ -1,16 +1,36 @@
 package main
 
 import (
+	"kademlia/internal/adapters"
 	"kademlia/internal/cli"
+	"kademlia/internal/core/entities"
+	. "kademlia/internal/core/kademlia"
 	"kademlia/internal/logging"
-	"kademlia/internal/shell"
+	. "kademlia/internal/shell"
 	"os"
 )
 
 func main() {
 	logging.InitLogger()
 
-	rootCmd := cli.NewRootCmd(os.Args[0], shell.NewShell())
+	rootCmd := cli.NewRootCommand(os.Args[0], func(config cli.Config) error {
+		network := adapters.NewUDPNetworkAdapter()
+
+		kademlia := NewKademlia(
+			NewContact(
+				NewKademliaID("0000000000000000000000000000000000000000000000000000000000000001"),
+				entities.Address{
+					IP: config.Host,
+					Port: config.Port,
+				},
+			),
+			network,
+		)
+		go kademlia.Run()
+
+		shell := NewShell(kademlia)
+		return shell.Run()
+	})
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

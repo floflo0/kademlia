@@ -1,18 +1,15 @@
 package ports
 
-type Address struct {
-	IP   string
-	Port int
-}
+import "kademlia/internal/core/entities"
 
 type Network interface {
-	Listen(address Address) (ListenConnection, error)
-	Dial(address Address) (DialConnection, error)
+	Listen(address entities.Address) (ListenConnection, error)
+	Dial(address entities.Address) (DialConnection, error)
 }
 
 type ListenConnection interface {
-	SendTo(address Address, payload []byte) error
-	Receive() ([]byte, *Address, error)
+	SendTo(address entities.Address, payload []byte) error
+	Receive() ([]byte, *entities.Address, error)
 	Close() error
 }
 

@@ -3,6 +3,7 @@ package shell
 import (
 	"fmt"
 	"io"
+	. "kademlia/internal/core/kademlia"
 	"kademlia/internal/shell/commands"
 	"log/slog"
 	"strings"
@@ -18,10 +19,11 @@ type shell struct {
 	commands map[string]commands.Command
 }
 
-func NewShell() Shell {
+func NewShell(kademlia Kademlia) Shell {
 	return &shell{
 		commands: map[string]commands.Command{
 			"exit": commands.NewExitCommand(),
+			"ping": commands.NewPingCommand(kademlia),
 		},
 	}
 }

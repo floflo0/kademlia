@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "proto/generated";
+
+import "ping.proto";
+
+message Message {
+  oneof payload {
+    Ping ping = 1;
+  };
+}

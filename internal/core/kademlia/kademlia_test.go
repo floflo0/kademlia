@@ -12,7 +12,7 @@ import (
 )
 
 // Helper function to create a dummy Kademlia node for testing
-func createTestNode() *Kademlia {
+func createTestNode() *kademlia {
 	me := NewContact(NewRandomKademliaID(), ports.Address{
 		IP: "127.0.0.1",
 		Port: 8000,

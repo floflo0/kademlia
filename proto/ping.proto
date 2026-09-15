@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+option go_package = "proto/generated";
+
+message Ping {
+  string request_uuid = 1;
+}

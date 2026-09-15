@@ -1,6 +1,7 @@
 package kademlia
 
 import (
+	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"kademlia/proto/generated"
 
@@ -12,11 +13,11 @@ type RPCResponse struct {
 }
 
 type Double struct {
-	address ports.Address
+	address entities.Address
 	id      *KademliaID
 }
 
-func SendFindNode(net ports.Network, address ports.Address, target *KademliaID) (*RPCResponse, error) {
+func SendFindNode(net ports.Network, address entities.Address, target *KademliaID) (*RPCResponse, error) {
 	connection, errDial := net.Dial(address)
 	if errDial != nil {
 		return nil, errDial
@@ -50,7 +51,7 @@ func SendFindNode(net ports.Network, address ports.Address, target *KademliaID) 
 	var response RPCResponse
 	for i := range len(dataRecv) {
 		response.double = append(response.double, Double{
-			ports.Address{
+			entities.Address{
 				IP:   dataRecv[i].GetAddress(),
 				Port: int(dataRecv[i].GetPort()),
 			},

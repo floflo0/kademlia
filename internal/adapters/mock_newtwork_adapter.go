@@ -1,25 +1,26 @@
 package adapters
 
 import (
+	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"sync"
 )
 
 type message struct {
-	from    ports.Address
+	from    entities.Address
 	payload []byte
 }
 
 type MockNetworkAdapter struct {
 	mu        sync.RWMutex
-	listeners map[ports.Address]chan message
+	listeners map[entities.Address]chan message
 	nextPort  int
 }
 
 type mockListenConnection struct {
 	mu              sync.RWMutex
 	network         *MockNetworkAdapter
-	address         ports.Address
+	address         entities.Address
 	messagesChannel chan message
 	closed          bool
 }
@@ -27,8 +28,8 @@ type mockListenConnection struct {
 type mockDialConnection struct {
 	mu                 sync.RWMutex
 	network            *MockNetworkAdapter
-	address            ports.Address
-	destinationAddress ports.Address
+	address            entities.Address
+	destinationAddress entities.Address
 	messagesChannel    chan message
 	closed             bool
 }
@@ -37,12 +38,12 @@ const listenersMessageChannelCapacity = 10
 
 func NewMockNetworkAdapter() *MockNetworkAdapter {
 	return &MockNetworkAdapter{
-		listeners: make(map[ports.Address]chan message),
+		listeners: make(map[entities.Address]chan message),
 		nextPort:  10_000,
 	}
 }
 
-func (n *MockNetworkAdapter) Listen(address ports.Address) (ports.ListenConnection, error) {
+func (n *MockNetworkAdapter) Listen(address entities.Address) (ports.ListenConnection, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if _, exists := n.listeners[address]; exists {
@@ -59,10 +60,10 @@ func (n *MockNetworkAdapter) Listen(address ports.Address) (ports.ListenConnecti
 	return connection, nil
 }
 
-func (n *MockNetworkAdapter) Dial(address ports.Address) (ports.DialConnection, error) {
+func (n *MockNetworkAdapter) Dial(address entities.Address) (ports.DialConnection, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	assignedAddress := ports.Address{
+	assignedAddress := entities.Address{
 		IP:   "127.0.0.1",
 		Port: n.nextPort,
 	}
@@ -82,7 +83,7 @@ func (n *MockNetworkAdapter) Dial(address ports.Address) (ports.DialConnection, 
 	return connection, nil
 }
 
-func (n *MockNetworkAdapter) send(from ports.Address, to ports.Address, payload []byte) error {
+func (n *MockNetworkAdapter) send(from entities.Address, to entities.Address, payload []byte) error {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	if listener, exists := n.listeners[to]; exists {
@@ -100,7 +101,7 @@ func (n *MockNetworkAdapter) send(from ports.Address, to ports.Address, payload 
 	return ErrDestinationNotFound
 }
 
-func (c *mockListenConnection) SendTo(address ports.Address, payload []byte) error {
+func (c *mockListenConnection) SendTo(address entities.Address, payload []byte) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c.closed {
@@ -109,7 +110,7 @@ func (c *mockListenConnection) SendTo(address ports.Address, payload []byte) err
 	return c.network.send(c.address, address, payload)
 }
 
-func (c *mockListenConnection) Receive() ([]byte, *ports.Address, error) {
+func (c *mockListenConnection) Receive() ([]byte, *entities.Address, error) {
 	c.mu.RLock()
 	closed := c.closed
 	c.mu.RUnlock()

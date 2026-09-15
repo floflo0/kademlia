@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"fmt"
+	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"net"
 	"time"
@@ -23,7 +24,7 @@ func NewUDPNetworkAdapter() *UdpNetworkAdapter {
 	return &UdpNetworkAdapter{}
 }
 
-func (*UdpNetworkAdapter) Listen(address ports.Address) (ports.ListenConnection, error) {
+func (*UdpNetworkAdapter) Listen(address entities.Address) (ports.ListenConnection, error) {
 	addr, err := addressToUdpAdrr(address)
 	if err != nil {
 		return nil, err
@@ -38,7 +39,7 @@ func (*UdpNetworkAdapter) Listen(address ports.Address) (ports.ListenConnection,
 	return connection, nil
 }
 
-func (*UdpNetworkAdapter) Dial(address ports.Address) (ports.DialConnection, error) {
+func (*UdpNetworkAdapter) Dial(address entities.Address) (ports.DialConnection, error) {
 	addr, err := addressToUdpAdrr(address)
 	if err != nil {
 		return nil, err
@@ -54,7 +55,7 @@ func (*UdpNetworkAdapter) Dial(address ports.Address) (ports.DialConnection, err
 	return connection, nil
 }
 
-func (c *udpListenConnection) SendTo(address ports.Address, payload []byte) error {
+func (c *udpListenConnection) SendTo(address entities.Address, payload []byte) error {
 	addr, err := addressToUdpAdrr(address)
 	if err != nil {
 		return err
@@ -63,7 +64,7 @@ func (c *udpListenConnection) SendTo(address ports.Address, payload []byte) erro
 	return err
 }
 
-func (c *udpListenConnection) Receive() ([]byte, *ports.Address, error) {
+func (c *udpListenConnection) Receive() ([]byte, *entities.Address, error) {
 	buffer := make([]byte, maxMessageSize)
 	n, addr, err := c.connection.ReadFromUDP(buffer)
 	if err != nil {
@@ -101,7 +102,7 @@ func (c *udpDialConnection) Close() error {
 	return c.connection.Close()
 }
 
-func addressToUdpAdrr(address ports.Address) (*net.UDPAddr, error) {
+func addressToUdpAdrr(address entities.Address) (*net.UDPAddr, error) {
 	ip := net.ParseIP(address.IP)
 	if ip == nil {
 		return nil, fmt.Errorf("failed to parse IP address: %q", address.IP)
@@ -113,8 +114,8 @@ func addressToUdpAdrr(address ports.Address) (*net.UDPAddr, error) {
 	return addr, nil
 }
 
-func udpAddrtoAddress(addr *net.UDPAddr) ports.Address {
-	return ports.Address{
+func udpAddrtoAddress(addr *net.UDPAddr) entities.Address {
+	return entities.Address{
 		IP:   addr.IP.String(),
 		Port: addr.Port,
 	}
