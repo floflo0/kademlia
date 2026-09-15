@@ -3,6 +3,8 @@ package kademlia
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"kademlia/internal/core/ports"
+	"log/slog"
 	"slices"
 	"sync"
 )
@@ -13,14 +15,15 @@ const b = 1
 
 type Kademlia struct {
 	RoutingTable *RoutingTable
-	Network      Network
+	Network      ports.Network
 	DataStore    map[string][]byte
 	me           Contact
 	mux          sync.RWMutex
 }
 
 // NewKademlia creates and initializes a new instance of the Kademlia node
-func NewKademlia(me Contact, net Network) *Kademlia {
+func NewKademlia(me Contact, net ports.Network) *Kademlia {
+	slog.Debug("", "me", me)
 	return &Kademlia{
 		RoutingTable: NewRoutingTable(me),
 		Network:      net,
@@ -33,7 +36,6 @@ func NewKademlia(me Contact, net Network) *Kademlia {
 func (kademlia *Kademlia) LookupContact(target *KademliaID) ContactCandidates {
 	// 1. Obtain the initial closest contacts from the local routing table
 	var candidates ContactCandidates
-	var net Network
 	var noNewClosest bool
 	var probed int
 	// TODO: No RPC response reaction,
@@ -47,7 +49,7 @@ func (kademlia *Kademlia) LookupContact(target *KademliaID) ContactCandidates {
 
 	for (!noNewClosest) && (probed == k) {
 		var wg sync.WaitGroup
-		ans := make(chan FindNodeResponse, k*alpha)
+		ans := make(chan RPCResponse, alpha)
 
 		for nodeCounter := range k {
 			wg.Add(1)
@@ -56,7 +58,11 @@ func (kademlia *Kademlia) LookupContact(target *KademliaID) ContactCandidates {
 				defer wg.Done()
 				contact := candidates.GetContact(nodeCounter)
 				if slices.Contains(alreadyContacted, contact) == false {
-					ans <- net.SendFindContactMessage(&contact)
+					ansFindNode, err := SendFindNode(kademlia.Network, contact.Address, target)
+					if err != nil {
+
+					}
+					ans <- *ansFindNode
 					alreadyContacted = append(alreadyContacted, contact)
 				}
 			}()
@@ -66,8 +72,11 @@ func (kademlia *Kademlia) LookupContact(target *KademliaID) ContactCandidates {
 		var new_candidates []Contact
 
 		for _ = range len(ans) {
-			new_candidate := <-ans
-			new_candidates = append(new_candidates, NewContact(new_candidate.ID, new_candidate.ipAddress))
+			candidatesAns := <-ans
+			for i := range len(candidatesAns.double) {
+				new_candidate := candidatesAns.double[i]
+				new_candidates = append(new_candidates, NewContact(new_candidate.id, new_candidate.address))
+			}
 		}
 
 		candidates.Append(new_candidates)
@@ -82,6 +91,7 @@ func (kademlia *Kademlia) LookupContact(target *KademliaID) ContactCandidates {
 		closestNode = newClosestNode
 		candidates.PopShortList(k)
 
+		probed = 0
 		for i := range len(candidates.contacts) {
 			if slices.Contains(alreadyContacted, candidates.GetContact(i)) == true {
 				probed += 1

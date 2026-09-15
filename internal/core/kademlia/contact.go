@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"fmt"
+	"kademlia/internal/core/ports"
 	"sort"
 )
 
@@ -9,12 +10,12 @@ import (
 // stores the KademliaID, the ip address and the distance
 type Contact struct {
 	ID       *KademliaID
-	Address  string
+	Address  ports.Address
 	distance *KademliaID
 }
 
 // NewContact returns a new instance of a Contact
-func NewContact(id *KademliaID, address string) Contact {
+func NewContact(id *KademliaID, address ports.Address) Contact {
 	return Contact{id, address, nil}
 }
 
