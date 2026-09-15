@@ -2,8 +2,17 @@ FROM golang:1.27-alpine3.24 AS builder
 
 WORKDIR /app
 
+RUN apk add --no-cache protoc
+
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
 COPY go.mod go.sum ./
+
 RUN go mod download
+
+COPY proto proto
+
+RUN go generate -v -x ./...
 
 COPY . .
 

@@ -6,3 +6,5 @@ Dockerfile
 .github
 .gitignore
 README.md
+kademlia
+proto/generated
