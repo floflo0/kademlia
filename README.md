@@ -1,5 +1,18 @@
 # Kademlia
 
+## Setup project
+
+### Generate protobuf code
+
+First install [protobuf compiler](https://protobuf.dev/installation/) and the [go
+plugin](https://protobuf.dev/getting-started/gotutorial/).
+
+Then, generate the required protobuf files with:
+
+```sh
+go generate ./...
+```
+
 ## Run
 
 To run the application:
@@ -11,6 +24,11 @@ go run -v ./cmd/kademlia
 ## Build
 
 To build the application:
+need protobuf
+
+```sh
+go generate ./...
+```
 
 ```sh
 go build -v -o kademlia ./cmd/kademlia
