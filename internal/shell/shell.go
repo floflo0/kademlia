@@ -3,7 +3,7 @@ package shell
 import (
 	"fmt"
 	"io"
-	. "kademlia/internal/core/kademlia"
+	"kademlia/internal/core/kademlia"
 	"kademlia/internal/shell/commands"
 	"log/slog"
 	"strings"
@@ -11,16 +11,12 @@ import (
 	"github.com/chzyer/readline"
 )
 
-type Shell interface {
-	Run() error
-}
-
-type shell struct {
+type Shell struct {
 	commands map[string]commands.Command
 }
 
-func NewShell(kademlia Kademlia) Shell {
-	return &shell{
+func NewShell(kademlia kademlia.Kademlia) *Shell {
+	return &Shell{
 		commands: map[string]commands.Command{
 			"exit": commands.NewExitCommand(),
 			"ping": commands.NewPingCommand(kademlia),
@@ -28,7 +24,7 @@ func NewShell(kademlia Kademlia) Shell {
 	}
 }
 
-func (s *shell) completer() *readline.PrefixCompleter {
+func (s *Shell) completer() *readline.PrefixCompleter {
 	items := make([]readline.PrefixCompleterInterface, 0, len(s.commands))
 	for name, command := range s.commands {
 		flags := command.GetFlags()
@@ -41,7 +37,7 @@ func (s *shell) completer() *readline.PrefixCompleter {
 	return readline.NewPrefixCompleter(items...)
 }
 
-func (s *shell) Run() error {
+func (s *Shell) Run() error {
 	slog.Debug("Start shell")
 
 	lineReader, err := readline.NewEx(&readline.Config{

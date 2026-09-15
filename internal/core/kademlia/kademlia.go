@@ -19,7 +19,7 @@ import (
 const k = 4
 const alpha = 4
 const b = 1
-const timeout = 1000  // ms
+const timeout = 1000 // ms
 
 type Kademlia interface {
 	Run() error
@@ -35,7 +35,7 @@ type kademlia struct {
 }
 
 // NewKademlia creates and initializes a new instance of the Kademlia node
-func NewKademlia(me Contact, net ports.Network) Kademlia {
+func NewKademlia(me Contact, net ports.Network) *kademlia {
 	slog.Debug("", "me", me)
 	return &kademlia{
 		RoutingTable: NewRoutingTable(me),

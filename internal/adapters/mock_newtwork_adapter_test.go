@@ -3,7 +3,7 @@ package adapters_test
 import (
 	"errors"
 	"kademlia/internal/adapters"
-	"kademlia/internal/core/ports"
+	"kademlia/internal/core/entities"
 	"testing"
 	"time"
 )
@@ -18,7 +18,7 @@ func TestNewMockNetworkAdapter(t *testing.T) {
 func TestMockNetworkAdapter_Listen_Success(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -34,7 +34,7 @@ func TestMockNetworkAdapter_Listen_Success(t *testing.T) {
 func TestMockNetworkAdapter_Listen_DifferentAddresses(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address1 := ports.Address{
+	address1 := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -43,7 +43,7 @@ func TestMockNetworkAdapter_Listen_DifferentAddresses(t *testing.T) {
 		t.Fatalf("Listen(%v) returned unexpected error: %v", address1, err)
 	}
 
-	address2 := ports.Address{
+	address2 := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8001,
 	}
@@ -56,7 +56,7 @@ func TestMockNetworkAdapter_Listen_DifferentAddresses(t *testing.T) {
 func TestMockNetworkAdapter_Listen_ReuseAddress(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -79,7 +79,7 @@ func TestMockNetworkAdapter_Listen_ReuseAddress(t *testing.T) {
 func TestMockNetworkAdapter_Listen_AddressAlreadyInUse(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -102,8 +102,8 @@ func TestMockNetworkAdapter_Listen_AddressAlreadyInUse(t *testing.T) {
 func TestMockNetworkAdapter_Listen_SendTo_Receive_Success(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address1 := ports.Address{IP: "127.0.0.1", Port: 8000}
-	address2 := ports.Address{IP: "127.0.0.1", Port: 8001}
+	address1 := entities.Address{IP: "127.0.0.1", Port: 8000}
+	address2 := entities.Address{IP: "127.0.0.1", Port: 8001}
 
 	connection1, err := network.Listen(address1)
 	if err != nil {
@@ -144,7 +144,7 @@ func TestMockNetworkAdapter_Listen_SendTo_Receive_Success(t *testing.T) {
 func TestMockNetworkAdapter_Listen_SendTo_DestinationNotFound(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address1 := ports.Address{
+	address1 := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -153,7 +153,7 @@ func TestMockNetworkAdapter_Listen_SendTo_DestinationNotFound(t *testing.T) {
 		t.Fatalf("Listen(%v) returned unexpected error: %v", address1, err)
 	}
 
-	address2 := ports.Address{
+	address2 := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8001,
 	}
@@ -173,7 +173,7 @@ func TestMockNetworkAdapter_Listen_SendTo_DestinationNotFound(t *testing.T) {
 func TestMockNetworkAdapter_Listen_SendTo_AfterClose(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address1 := ports.Address{
+	address1 := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -187,7 +187,7 @@ func TestMockNetworkAdapter_Listen_SendTo_AfterClose(t *testing.T) {
 		t.Fatalf("Close() returned unexpected error: %v", err)
 	}
 
-	address2 := ports.Address{
+	address2 := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8001,
 	}
@@ -207,7 +207,7 @@ func TestMockNetworkAdapter_Listen_SendTo_AfterClose(t *testing.T) {
 func TestMockNetworkAdapter_Listen_SendTo_QueueFull(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -216,7 +216,7 @@ func TestMockNetworkAdapter_Listen_SendTo_QueueFull(t *testing.T) {
 		t.Fatalf("Listen(%v) returned unexpected error: %v", address, err)
 	}
 
-	destinationAddress := ports.Address{
+	destinationAddress := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8001,
 	}
@@ -257,7 +257,7 @@ func TestMockNetworkAdapter_Listen_SendTo_QueueFull(t *testing.T) {
 func TestMockNetworkAdapter_Listen_Receive_AfterClose(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -284,7 +284,7 @@ func TestMockNetworkAdapter_Listen_Receive_AfterClose(t *testing.T) {
 func TestMockNetworkAdapter_Listen_Receive_ConnectionClosed(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -327,7 +327,7 @@ func TestMockNetworkAdapter_Listen_Receive_ConnectionClosed(t *testing.T) {
 func TestMockNetworkAdapter_Listen_Close_Sucess(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -345,7 +345,7 @@ func TestMockNetworkAdapter_Listen_Close_Sucess(t *testing.T) {
 func TestMockNetworkAdapter_Listen_Close_AlreadyClosed(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -372,7 +372,7 @@ func TestMockNetworkAdapter_Listen_Close_AlreadyClosed(t *testing.T) {
 func TestMockNetworkAdapter_Dial_Success(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -387,7 +387,7 @@ func TestMockNetworkAdapter_Dial_Success(t *testing.T) {
 
 func TestMockNetworkAdapter_Dial_SameAddress(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -405,7 +405,7 @@ func TestMockNetworkAdapter_Dial_SameAddress(t *testing.T) {
 func TestMockNetworkAdapter_Dial_AddressAlreadyInUse(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address1 := ports.Address{
+	address1 := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 10_000,
 	}
@@ -414,7 +414,7 @@ func TestMockNetworkAdapter_Dial_AddressAlreadyInUse(t *testing.T) {
 		t.Fatalf("Listen(%v) returned unexpected error: %v", address1, err)
 	}
 
-	address2 := ports.Address{
+	address2 := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -432,7 +432,7 @@ func TestMockNetworkAdapter_Dial_AddressAlreadyInUse(t *testing.T) {
 func TestMockNetworkAdapter_Dial_Send_Receive_Success(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -494,7 +494,7 @@ func TestMockNetworkAdapter_Dial_Send_Receive_Success(t *testing.T) {
 func TestMockNetworkAdapter_Dial_Send_AfterClose(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -523,7 +523,7 @@ func TestMockNetworkAdapter_Dial_Send_AfterClose(t *testing.T) {
 func TestMockNetworkAdapter_Dial_Receive_AfterClose(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -552,7 +552,7 @@ func TestMockNetworkAdapter_Dial_Receive_AfterClose(t *testing.T) {
 func TestMockNetworkAdapter_Dial_Receive_ConnectionClosed(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -601,7 +601,7 @@ func TestMockNetworkAdapter_Dial_Receive_ConnectionClosed(t *testing.T) {
 func TestMockNetworkAdapter_Dial_Close_Sucess(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
@@ -619,7 +619,7 @@ func TestMockNetworkAdapter_Dial_Close_Sucess(t *testing.T) {
 func TestMockNetworkAdapter_Dial_Close_AlreadyClosed(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
-	address := ports.Address{
+	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	}
