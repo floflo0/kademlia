@@ -3,6 +3,9 @@ package cli
 import (
 	"fmt"
 	"kademlia/config"
+	"kademlia/internal/adapters"
+	"kademlia/internal/core/kademlia"
+	"kademlia/internal/core/ports"
 	"log/slog"
 
 	"github.com/spf13/cobra"
@@ -28,6 +31,13 @@ func NewRootCmd(commandName string) *cobra.Command {
 			}
 
 			slog.Debug("Parsed command line", "host", host, "port", port)
+
+			//Put code here
+			network := adapters.NewUDPNetworkAdapter()
+			kad := kademlia.NewKademlia(kademlia.NewContact(kademlia.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000001"), ports.Address{IP: "127.0.0.1", Port: 8080}), network)
+			kad.RoutingTable.AddContact(kademlia.NewContact(kademlia.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000002"), ports.Address{IP: "127.0.0.1", Port: 8081}))
+			r := kad.LookupContact(kademlia.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000003"))
+			slog.Debug("", "r", r)
 			return nil
 		},
 	}
