@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "internal/core/kademlia";
+option go_package = "proto/generated";
 
 message FindNodeResponse {
   repeated Triples triples = 1;
@@ -11,4 +11,3 @@ message Triples {
     int32 port = 2;
 	bytes kademliaid = 3;
 }
-

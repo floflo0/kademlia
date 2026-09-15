@@ -1,8 +1,8 @@
 package kademlia
 
 import (
-	"kademlia/internal/core/kademlia/pb"
 	"kademlia/internal/core/ports"
+	"kademlia/proto/generated"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -22,7 +22,7 @@ func SendFindNode(net ports.Network, address ports.Address, target *KademliaID) 
 		return nil, errDial
 	}
 
-	var message pb.FindNode
+	var message generated.FindNode
 	message.Data = target[:]
 
 	out, errMarshal := proto.Marshal(&message)
@@ -40,7 +40,7 @@ func SendFindNode(net ports.Network, address ports.Address, target *KademliaID) 
 		return nil, errRcv
 	}
 
-	msgRecv := &pb.FindNodeResponse{}
+	msgRecv := &generated.FindNodeResponse{}
 	err := proto.Unmarshal(recv, msgRecv)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,13 @@ func SendFindNode(net ports.Network, address ports.Address, target *KademliaID) 
 	dataRecv := msgRecv.GetTriples()
 	var response RPCResponse
 	for i := range len(dataRecv) {
-		response.double = append(response.double, Double{ports.Address{IP: dataRecv[i].GetAddress(), Port: int(dataRecv[i].GetPort())}, NewKademliaID(string(dataRecv[i].GetKademliaid()))})
+		response.double = append(response.double, Double{
+			ports.Address{
+				IP:   dataRecv[i].GetAddress(),
+				Port: int(dataRecv[i].GetPort()),
+			},
+			NewKademliaID(string(dataRecv[i].GetKademliaid())),
+		})
 	}
 
 	return &response, nil

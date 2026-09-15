@@ -5,14 +5,19 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"kademlia/internal/adapters"
+	"kademlia/internal/core/ports"
 	"sync"
 	"testing"
 )
 
 // Helper function to create a dummy Kademlia node for testing
 func createTestNode() *Kademlia {
-	me := NewContact(NewRandomKademliaID(), "localhost:8000")
-	net := Network{}
+	me := NewContact(NewRandomKademliaID(), ports.Address{
+		IP: "127.0.0.1",
+		Port: 8000,
+	})
+	net := adapters.NewMockNetworkAdapter()
 	return NewKademlia(me, net)
 }
 
@@ -66,7 +71,10 @@ func TestLookupDataNotFound(t *testing.T) {
 	node := createTestNode()
 
 	// Add a dummy contact to the routing table so LookupContact returns candidates
-	dummyContact := NewContact(NewRandomKademliaID(), "localhost:8001")
+	dummyContact := NewContact(NewRandomKademliaID(), ports.Address{
+		IP: "127.0.0.1",
+		Port: 8001,
+	})
 	node.RoutingTable.AddContact(dummyContact)
 
 	hashBytes := sha256.Sum256([]byte("non-existent"))
