@@ -10,11 +10,15 @@ import (
 	"github.com/chzyer/readline"
 )
 
+type Shell interface {
+	Run() error
+}
+
 type shell struct {
 	commands map[string]commands.Command
 }
 
-func NewShell() *shell {
+func NewShell() Shell {
 	return &shell{
 		commands: map[string]commands.Command{
 			"exit": commands.NewExitCommand(),

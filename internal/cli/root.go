@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewRootCmd(commandName string) *cobra.Command {
+func NewRootCmd(commandName string, shell shell.Shell) *cobra.Command {
 	rootCommand := &cobra.Command{
 		Use:                   commandName + " [-h] [--host host] [-p port]",
 		Short:                 "Kademlia node",
@@ -29,7 +29,7 @@ func NewRootCmd(commandName string) *cobra.Command {
 			}
 
 			slog.Debug("Parsed command line", "host", host, "port", port)
-			return shell.NewShell().Run()
+			return shell.Run()
 		},
 	}
 	rootCommand.Flags().String("host", config.DefaultHost, "the host")
