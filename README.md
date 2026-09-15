@@ -24,11 +24,6 @@ go run -v ./cmd/kademlia
 ## Build
 
 To build the application:
-need protobuf
-
-```sh
-go generate ./...
-```
 
 ```sh
 go build -v -o kademlia ./cmd/kademlia
