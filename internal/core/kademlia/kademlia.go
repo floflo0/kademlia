@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const k = 4
+const k_const = 4
 const alpha = 3
 const b = 1
 const timeout = 1000 // ms
@@ -37,7 +37,6 @@ type kademlia struct {
 
 // NewKademlia creates and initializes a new instance of the Kademlia node
 func NewKademlia(me Contact, net ports.Network) *kademlia {
-	slog.Debug("", "me", me)
 	return &kademlia{
 		RoutingTable: NewRoutingTable(me),
 		network:      net,
@@ -82,6 +81,48 @@ func (k *kademlia) handleRequest(
 	switch payload := message.Payload.(type) {
 	case *generated.Message_Ping:
 		k.handlePing(connection, payload.Ping, address)
+	case *generated.Message_FindNode:
+		k.handleFindNode(connection, payload.FindNode, address)
+	}
+}
+
+func (k *kademlia) handleFindNode(
+	connection ports.ListenConnection,
+	findNode *generated.FindNode,
+	address entities.Address,
+) {
+	slog.Info(
+		"Receive find node message",
+		"requestTarget",
+		findNode.GetData(),
+		"from",
+		address,
+	)
+
+	var candidates ContactCandidates
+	candidates.Append(k.RoutingTable.FindClosestContacts((*KademliaID)(findNode.GetData()), k_const))
+	candidates.Sort()
+
+	var findNodeResponse generated.FindNodeResponse
+
+	for i := range len(candidates.contacts) {
+		triple := generated.Triples{
+			Address:    candidates.contacts[i].Address.IP,
+			Port:       int32(candidates.contacts[i].Address.Port),
+			Kademliaid: []byte(candidates.contacts[i].ID.String()),
+		}
+		findNodeResponse.Triples = append(findNodeResponse.Triples, &triple)
+	}
+
+	payload, err := proto.Marshal(&findNodeResponse)
+	if err != nil {
+		slog.Error("error", "err", err)
+		return
+	}
+
+	if err := connection.SendTo(address, payload); err != nil {
+		slog.Error("error", "err", err)
+		return
 	}
 }
 
@@ -122,17 +163,20 @@ func (kademlia *kademlia) LookupContact(target *KademliaID) (*ContactCandidates,
 
 	var alreadyContacted []Contact
 
-	candidates.Append(kademlia.RoutingTable.FindClosestContacts(target, k))
+	candidates.Append(kademlia.RoutingTable.FindClosestContacts(target, k_const))
 	candidates.Sort()
 	closestNode := candidates.GetContact(0)
 	noNewClosest = false
 
-	for (!noNewClosest) && (probed == k) {
+	slog.Debug("Before Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", k_const)
+	for (!noNewClosest) && (probed != k_const) {
 		var wg sync.WaitGroup
 		ans := make(chan RPCResponse, alpha)
+		slog.Debug("In Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", k_const)
 
-		for nodeCounter := range alpha {
+		for nodeCounter := range min(alpha, candidates.Len()) {
 			wg.Add(1)
+			slog.Debug("Counter", "nodeCounter", nodeCounter, "candidates", candidates.Len())
 
 			go func() error {
 				defer wg.Done()
@@ -146,6 +190,7 @@ func (kademlia *kademlia) LookupContact(target *KademliaID) (*ContactCandidates,
 							return err
 						}
 					}
+					slog.Debug("Finded Nodes", "ansFindNode", ansFindNode)
 					ans <- *ansFindNode
 					alreadyContacted = append(alreadyContacted, contact)
 				}
@@ -174,7 +219,9 @@ func (kademlia *kademlia) LookupContact(target *KademliaID) (*ContactCandidates,
 		}
 
 		closestNode = newClosestNode
-		candidates.PopShortList(k)
+		if candidates.Len() > k_const {
+			candidates.PopShortList(k_const)
+		}
 
 		probed = 0
 		for i := range len(candidates.contacts) {

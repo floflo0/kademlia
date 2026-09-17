@@ -8,6 +8,6 @@ message FindNodeResponse {
 
 message Triples {
 	string address = 1;
-    int32 port = 2;
+  int32 port = 2;
 	bytes kademliaid = 3;
 }

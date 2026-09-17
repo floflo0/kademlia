@@ -39,22 +39,22 @@ func TestNewKademlia(t *testing.T) {
 }
 
 func TestLookupContactFunc(t *testing.T) {
-	node1 := createTestNode(8000, NewKademliaID("00000000000000000000000000000000000000000000000000000000000000000"))
-	node2 := createTestNode(8001, NewKademliaID("00000000000000000000000000000000000000000000000000000000000000050"))
-	node3 := createTestNode(8002, NewKademliaID("00000000000000000000000000000000000000000000000000000000000000010"))
-	node4 := createTestNode(8003, NewKademliaID("00000000000000000000000000000000000000000000000000000000000000020"))
+	node1 := createTestNode(8000, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000"))
+	node2 := createTestNode(8001, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000050"))
+	node3 := createTestNode(8002, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000010"))
+	node4 := createTestNode(8003, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000020"))
 
 	node1.RoutingTable.AddContact(node2.me)
 	node1.RoutingTable.AddContact(node3.me)
 	node2.RoutingTable.AddContact(node1.me)
 	node3.RoutingTable.AddContact(node4.me)
 
-	target := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000015")
+	target := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000016")
 	candidates, _ := node1.LookupContact(target)
 	node2.me.CalcDistance(target)
 
 	expectedCandidates := &ContactCandidates{
-		[]Contact{node2.me},
+		[]Contact{node4.me},
 	}
 
 	for i := range len(expectedCandidates.contacts) {

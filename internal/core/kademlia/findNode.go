@@ -25,10 +25,15 @@ func SendFindNode(net ports.Network, address entities.Address, target *KademliaI
 		return nil, errDial
 	}
 
-	var message generated.FindNode
-	message.Data = target[:]
+	findNodeMessage := generated.Message{
+		Payload: &generated.Message_FindNode{
+			FindNode: &generated.FindNode{
+				Data: target[:],
+			},
+		},
+	}
 
-	out, errMarshal := proto.Marshal(&message)
+	out, errMarshal := proto.Marshal(&findNodeMessage)
 	if errMarshal != nil {
 		slog.Debug("Marshal")
 		return nil, errMarshal
