@@ -1,12 +1,14 @@
 package commands
 
 import (
+	"fmt"
+	"kademlia/config"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/kademlia"
 	"log/slog"
+	"strconv"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 type pingCommand struct {
@@ -20,20 +22,39 @@ func NewPingCommand(kademlia kademlia.Kademlia) Command {
 }
 
 func (c *pingCommand) buildCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:                   "ping [-h]",
-		Short:                 "TODO",
-		Args:                  cobra.NoArgs,
+	command := &cobra.Command{
+		Use:                   "ping [-h] adresss [port]",
+		Short:                 "Ping a node",
+		Args:                  cobra.RangeArgs(1, 2),
+		Example:               "ping 127.0.0.1 8081",
 		DisableFlagsInUseLine: true,
-		Run: func(cmd *cobra.Command, args []string) {
-			elapsedTime, err := c.kademlia.Ping(entities.Address{
-				IP:   "127.0.0.1",
-				Port: 8080,
-			})
-			slog.Debug("ping", "elapsedTime", elapsedTime, "err", err)
+		RunE: func(command *cobra.Command, args []string) error {
+			port := config.DefaultPort
+			if len(args) == 2 {
+				var err error
+				port, err = strconv.Atoi(args[1])
+				if err != nil {
+					return fmt.Errorf("invalid port: %q: %v", args[1], err)
+				}
+			}
+			address := entities.Address{
+				IP:   args[0],
+				Port: port,
+			}
+			elapsedTime, err := c.kademlia.Ping(address)
+			if err != nil {
+				slog.Error("Ping", "err", err)
+				return nil
+			}
+			slog.Info(
+				"Ping",
+				"address", address,
+				"elapsedTime", elapsedTime,
+			)
+			return nil
 		},
 	}
-	return cmd
+	return command
 }
 
 func (c *pingCommand) Execute(args []string) error {
@@ -43,14 +64,5 @@ func (c *pingCommand) Execute(args []string) error {
 }
 
 func (c *pingCommand) GetFlags() []string {
-	command := c.buildCommand()
-	command.InitDefaultHelpFlag()
-	flags := make([]string, 0)
-	command.Flags().VisitAll(func(flag *pflag.Flag) {
-		flags = append(flags, "--"+flag.Name)
-		if flag.Shorthand != "" {
-			flags = append(flags, "-"+flag.Shorthand)
-		}
-	})
-	return flags
+	return getFlags(c.buildCommand())
 }
