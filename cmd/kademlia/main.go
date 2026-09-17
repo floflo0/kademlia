@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	logging.InitLogger()
+	logging.InitLogger(os.Stdout)
 
 	rootCmd := cli.NewRootCommand(os.Args[0], func(config cli.Config) error {
 		network := adapters.NewUDPNetworkAdapter()

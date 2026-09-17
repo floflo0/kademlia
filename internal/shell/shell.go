@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/logging"
 	"kademlia/internal/shell/commands"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/chzyer/readline"
@@ -48,6 +50,8 @@ func (s *Shell) Run() error {
 		return err
 	}
 	defer lineReader.Close()
+	logging.InitLogger(lineReader.Stdout())
+	defer logging.InitLogger(os.Stdout)
 
 	for {
 		line, err := lineReader.Readline()

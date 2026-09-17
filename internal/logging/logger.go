@@ -1,13 +1,14 @@
 package logging
 
 import (
+	"io"
 	"kademlia/config"
 	"log/slog"
 	"os"
 	"path/filepath"
 )
 
-func InitLogger() {
+func InitLogger(writer io.Writer) {
 	level := new(slog.LevelVar)
 	level.Set(config.LogLevel)
 	projectRoot, err := os.Getwd()
@@ -29,7 +30,7 @@ func InitLogger() {
 		return attr
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	logger := slog.New(slog.NewTextHandler(writer, &slog.HandlerOptions{
 		AddSource:   true,
 		Level:       level,
 		ReplaceAttr: replace,
