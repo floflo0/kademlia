@@ -86,7 +86,7 @@ func main() {
 			},
 		))
 
-		target := kademlia.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000016")
+		target := kademlia.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000021")
 		go kademlia0.Run()
 		go kademlia1.Run()
 		go kademlia2.Run()

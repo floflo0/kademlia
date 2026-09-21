@@ -18,8 +18,8 @@ type Double struct {
 	id      *KademliaID
 }
 
-func SendFindNode(net ports.Network, address entities.Address, target *KademliaID) (*RPCResponse, error) {
-	connection, errDial := net.Dial(address)
+func (k *kademlia) SendFindNode(net ports.Network, recipient Contact, target *KademliaID) (*RPCResponse, error) {
+	connection, errDial := net.Dial(recipient.Address)
 	if errDial != nil {
 		slog.Debug("Dial")
 		return nil, errDial
@@ -28,7 +28,9 @@ func SendFindNode(net ports.Network, address entities.Address, target *KademliaI
 	findNodeMessage := generated.Message{
 		Payload: &generated.Message_FindNode{
 			FindNode: &generated.FindNode{
-				Data: target[:],
+				TargetId:    target[:],
+				RequesterId: k.me.ID[:],
+				RecipientId: recipient.ID[:],
 			},
 		},
 	}

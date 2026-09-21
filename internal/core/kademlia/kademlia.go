@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"kademlia/proto/generated"
@@ -31,6 +32,7 @@ type kademlia struct {
 	RoutingTable *RoutingTable
 	network      ports.Network
 	DataStore    map[string][]byte
+	Connection   ports.ListenConnection
 	me           Contact
 	mux          sync.RWMutex
 }
@@ -50,6 +52,7 @@ func (k *kademlia) Run() error {
 	if err != nil {
 		return err
 	}
+	k.Connection = connection
 	defer connection.Close()
 	ip, err := connection.GetIP()
 	if err != nil {
@@ -61,10 +64,24 @@ func (k *kademlia) Run() error {
 		payload, address, err := connection.Receive()
 		if err != nil {
 			slog.Error("todo: message", "err", err)
-			continue
+			if err == adapters.ErrConnectionClosed {
+				break
+			}
 		}
 		k.handleRequest(connection, payload, *address)
 	}
+	return nil
+}
+
+func (k *kademlia) Quit() error {
+	if k.Connection == nil {
+		return errors.New("No connection")
+	}
+	err := k.Connection.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (k *kademlia) handleRequest(
@@ -94,14 +111,31 @@ func (k *kademlia) handleFindNode(
 	slog.Info(
 		"Receive find node message",
 		"requestTarget",
-		findNode.GetData(),
+		findNode.GetTargetId(),
+		"requestRequester",
+		findNode.GetRequesterId(),
+		"requestRecipient",
+		findNode.GetRecipientId(),
 		"from",
 		address,
 	)
 
+	var candidates_raw ContactCandidates
+	candidates_raw.Append(k.RoutingTable.FindClosestContacts((*KademliaID)(findNode.GetTargetId()), k_const+1))
+	candidates_raw.Sort()
+
+	requester_ID := (*KademliaID)(findNode.GetRequesterId())
 	var candidates ContactCandidates
-	candidates.Append(k.RoutingTable.FindClosestContacts((*KademliaID)(findNode.GetData()), k_const))
-	candidates.Sort()
+	for i := range len(candidates_raw.contacts) {
+		slog.Debug("IDs", "candidates_raw.contacts[i].ID", candidates_raw.contacts[i].ID, "requester_ID", requester_ID)
+		if *candidates_raw.contacts[i].ID != *requester_ID {
+			candidates.contacts = append(candidates.contacts, candidates_raw.contacts[i])
+		}
+	}
+
+	if len(candidates.contacts) > k_const {
+		candidates.PopShortList(k_const)
+	}
 
 	var findNodeResponse generated.FindNodeResponse
 
@@ -182,7 +216,8 @@ func (kademlia *kademlia) LookupContact(target *KademliaID) (*ContactCandidates,
 				defer wg.Done()
 				contact := candidates.GetContact(nodeCounter)
 				if slices.Contains(alreadyContacted, contact) == false {
-					ansFindNode, err := SendFindNode(kademlia.network, contact.Address, target)
+					slog.Debug("Sending find node", "contact ID", contact.ID)
+					ansFindNode, err := kademlia.SendFindNode(kademlia.network, contact, target)
 					if err != nil {
 						if errors.Is(err, syscall.ECONNREFUSED) {
 							kademlia.RoutingTable.RemoveContact(contact)
@@ -200,18 +235,44 @@ func (kademlia *kademlia) LookupContact(target *KademliaID) (*ContactCandidates,
 
 		wg.Wait()
 		var new_candidates []Contact
+		var new_candidates_id []KademliaID
 
 		for range len(ans) {
 			candidatesAns := <-ans
 			for i := range len(candidatesAns.double) {
 				new_candidate := candidatesAns.double[i]
-				new_candidates = append(new_candidates, NewContact(new_candidate.id, new_candidate.address))
+				new_contact := NewContact(new_candidate.id, new_candidate.address)
+				new_contact.CalcDistance(target)
+				if !slices.Contains(new_candidates_id, *new_contact.ID) {
+					new_candidates = append(new_candidates, new_contact)
+					new_candidates_id = append(new_candidates_id, *new_contact.ID)
+					slog.Debug("Candidates ID", "new_candidates_id", new_candidates_id)
+				}
 			}
 		}
 
-		candidates.Append(new_candidates)
-		candidates.Sort()
+		var candidates_id []KademliaID
 
+		for i := range len(candidates.contacts) {
+			candidates_id = append(candidates_id, *candidates.contacts[i].ID)
+		}
+
+		slog.Debug("New candidates before removing", "new_candidates", new_candidates)
+		var new_candidates_without_candidates []Contact
+
+		for i := range len(new_candidates) {
+			if !slices.Contains(candidates_id, *new_candidates[i].ID) {
+				new_candidates_without_candidates = append(new_candidates_without_candidates, new_candidates[i])
+			}
+		}
+
+		candidates.Append(new_candidates_without_candidates)
+		slog.Debug("Candidates after find_node", "candidates", candidates)
+		candidates.Sort()
+		slog.Debug("Candidates after sort", "candidates", candidates)
+		for i := range len(candidates.contacts) {
+			slog.Debug("Distance", "distance", candidates.contacts[i].distance)
+		}
 		newClosestNode := candidates.GetContact(0)
 
 		if newClosestNode == closestNode {
