@@ -7,6 +7,7 @@ import (
 	"kademlia/internal/core/kademlia"
 	"kademlia/internal/logging"
 	"kademlia/internal/shell"
+	"log/slog"
 	"os"
 )
 
@@ -26,7 +27,10 @@ func main() {
 			),
 			network,
 		)
-		go kademlia.Run()
+		go func() {
+			err := kademlia.Run()
+			slog.Error("Kademlia run failed", "err", err)
+		}()
 
 		shell := shell.NewShell(kademlia)
 		return shell.Run()

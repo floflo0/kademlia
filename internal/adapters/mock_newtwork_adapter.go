@@ -101,6 +101,10 @@ func (n *MockNetworkAdapter) send(from entities.Address, to entities.Address, pa
 	return ErrDestinationNotFound
 }
 
+func (c *mockListenConnection) GetIP() (string, error) {
+	return c.address.IP, nil
+}
+
 func (c *mockListenConnection) SendTo(address entities.Address, payload []byte) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

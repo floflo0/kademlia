@@ -55,6 +55,23 @@ func (*UdpNetworkAdapter) Dial(address entities.Address) (ports.DialConnection, 
 	return connection, nil
 }
 
+func (c *udpListenConnection) GetIP() (string, error) {
+	addr := c.connection.LocalAddr().(*net.UDPAddr)
+	if addr.IP.IsUnspecified() {
+		conn, err := net.DialUDP("udp", nil, &net.UDPAddr{
+			IP:   net.ParseIP("1.1.1.1"),
+			Port: 80,
+		})
+		if err != nil {
+			return "", err
+		}
+		defer conn.Close()
+		addr := conn.LocalAddr().(*net.UDPAddr)
+		return addr.IP.String(), nil
+	}
+	return addr.IP.String(), nil
+}
+
 func (c *udpListenConnection) SendTo(address entities.Address, payload []byte) error {
 	addr, err := addressToUdpAdrr(address)
 	if err != nil {

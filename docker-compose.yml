@@ -3,3 +3,5 @@ services:
     build: .
     deploy:
       replicas: 5
+    tty: true
+    stdin_open: true

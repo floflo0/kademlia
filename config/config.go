@@ -4,6 +4,6 @@ import "log/slog"
 
 const (
 	LogLevel    = slog.LevelDebug
-	DefaultHost = "127.0.0.1"
+	DefaultHost = "0.0.0.0"
 	DefaultPort = 8080
 )

@@ -51,6 +51,11 @@ func (k *kademlia) Run() error {
 		return err
 	}
 	defer connection.Close()
+	ip, err := connection.GetIP()
+	if err != nil {
+		return err
+	}
+	slog.Info("Server started", "ip", ip, "port", k.me.Address.Port)
 
 	for {
 		payload, address, err := connection.Receive()

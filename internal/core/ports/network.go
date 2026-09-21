@@ -8,6 +8,7 @@ type Network interface {
 }
 
 type ListenConnection interface {
+	GetIP() (string, error)
 	SendTo(address entities.Address, payload []byte) error
 	Receive() ([]byte, *entities.Address, error)
 	Close() error

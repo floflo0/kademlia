@@ -99,6 +99,23 @@ func TestMockNetworkAdapter_Listen_AddressAlreadyInUse(t *testing.T) {
 	}
 }
 
+func TestMockNetworkAdapter_Listen_GetIP_Success(t *testing.T) {
+	network := adapters.NewMockNetworkAdapter()
+	address := entities.Address{IP: "127.0.0.1", Port: 8000}
+	connection, err := network.Listen(address)
+	if err != nil {
+		t.Fatalf("Listen(%v) returned unexpected error: %v", address, err)
+	}
+	ip, err := connection.GetIP()
+	if err != nil {
+		t.Fatalf("GetIP() returned unexpected error: %v", err)
+	}
+	expectedIP := "127.0.0.1"
+	if ip != expectedIP {
+		t.Fatalf("GetIP() ip = %v; want %v", ip, expectedIP)
+	}
+}
+
 func TestMockNetworkAdapter_Listen_SendTo_Receive_Success(t *testing.T) {
 	network := adapters.NewMockNetworkAdapter()
 
