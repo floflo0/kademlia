@@ -27,6 +27,7 @@ func main() {
 			),
 			network,
 		)
+
 		go func() {
 			err := kademlia.Run()
 			slog.Error("Kademlia run failed", "err", err)

@@ -4,6 +4,7 @@ import (
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"kademlia/proto/generated"
+	"log/slog"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -17,22 +18,33 @@ type Double struct {
 	id      *KademliaID
 }
 
-func SendFindNode(net ports.Network, address entities.Address, target *KademliaID) (*RPCResponse, error) {
-	connection, errDial := net.Dial(address)
+func SendFindNode(requester_id *KademliaID, net ports.Network, recipient Contact, target *KademliaID) (*RPCResponse, error) {
+	slog.Debug("Sending find node", "recipient ID", recipient.ID)
+	connection, errDial := net.Dial(recipient.Address)
 	if errDial != nil {
+		slog.Debug("Dial")
 		return nil, errDial
 	}
 
-	var message generated.FindNode
-	message.Data = target[:]
+	findNodeMessage := generated.Message{
+		Payload: &generated.Message_FindNode{
+			FindNode: &generated.FindNode{
+				TargetId:    target[:],
+				RequesterId: requester_id[:],
+				RecipientId: recipient.ID[:],
+			},
+		},
+	}
 
-	out, errMarshal := proto.Marshal(&message)
+	out, errMarshal := proto.Marshal(&findNodeMessage)
 	if errMarshal != nil {
+		slog.Debug("Marshal")
 		return nil, errMarshal
 	}
 
 	errSend := connection.Send(out)
 	if errSend != nil {
+		slog.Debug("Send")
 		return nil, errSend
 	}
 

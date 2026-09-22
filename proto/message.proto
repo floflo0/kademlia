@@ -3,9 +3,11 @@ syntax = "proto3";
 option go_package = "proto/generated";
 
 import "ping.proto";
+import "find_node.proto";
 
 message Message {
   oneof payload {
     Ping ping = 1;
+    FindNode find_node = 2;
   };
 }

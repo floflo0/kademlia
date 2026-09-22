@@ -1,23 +1,23 @@
 package kademlia
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
+	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"kademlia/proto/generated"
 	"log/slog"
 	"slices"
 	"sync"
+	"syscall"
 	"time"
 	"uuid"
 
 	"google.golang.org/protobuf/proto"
 )
 
-const k = 4
-const alpha = 4
+const k_const = 4
+const alpha = 3
 const b = 1
 const timeout = 1000 // ms
 
@@ -30,13 +30,13 @@ type kademlia struct {
 	RoutingTable *RoutingTable
 	network      ports.Network
 	DataStore    map[string][]byte
+	Connection   ports.ListenConnection
 	me           Contact
 	mux          sync.RWMutex
 }
 
 // NewKademlia creates and initializes a new instance of the Kademlia node
 func NewKademlia(me Contact, net ports.Network) *kademlia {
-	slog.Debug("", "me", me)
 	return &kademlia{
 		RoutingTable: NewRoutingTable(me),
 		network:      net,
@@ -50,6 +50,9 @@ func (k *kademlia) Run() error {
 	if err != nil {
 		return err
 	}
+	k.mux.Lock()
+	k.Connection = connection
+	k.mux.Unlock()
 	defer connection.Close()
 	ip, err := connection.GetIP()
 	if err != nil {
@@ -61,10 +64,28 @@ func (k *kademlia) Run() error {
 		payload, address, err := connection.Receive()
 		if err != nil {
 			slog.Error("todo: message", "err", err)
-			continue
+			if err == adapters.ErrConnectionClosed {
+				break
+			} else {
+				continue
+			}
 		}
 		k.handleRequest(connection, payload, *address)
 	}
+	return nil
+}
+
+func (k *kademlia) Quit() error {
+	k.mux.RLock()
+	if k.Connection == nil {
+		return errors.New("No connection")
+	}
+	err := k.Connection.Close()
+	k.mux.RUnlock()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (k *kademlia) handleRequest(
@@ -81,6 +102,65 @@ func (k *kademlia) handleRequest(
 	switch payload := message.Payload.(type) {
 	case *generated.Message_Ping:
 		k.handlePing(connection, payload.Ping, address)
+	case *generated.Message_FindNode:
+		k.handleFindNode(connection, payload.FindNode, address)
+	}
+}
+
+func (k *kademlia) handleFindNode(
+	connection ports.ListenConnection,
+	findNode *generated.FindNode,
+	address entities.Address,
+) {
+	slog.Info(
+		"Receive find node message",
+		"requestTarget",
+		findNode.GetTargetId(),
+		"requestRequester",
+		findNode.GetRequesterId(),
+		"requestRecipient",
+		findNode.GetRecipientId(),
+		"from",
+		address,
+	)
+
+	var candidates_raw ContactCandidates
+	candidates_raw.Append(k.RoutingTable.FindClosestContacts((*KademliaID)(findNode.GetTargetId()), k_const+1))
+	candidates_raw.Sort()
+
+	requester_ID := (*KademliaID)(findNode.GetRequesterId())
+	var candidates ContactCandidates
+	for i := range len(candidates_raw.contacts) {
+		slog.Debug("IDs", "candidates_raw.contacts[i].ID", candidates_raw.contacts[i].ID, "requester_ID", requester_ID)
+		if *candidates_raw.contacts[i].ID != *requester_ID {
+			candidates.contacts = append(candidates.contacts, candidates_raw.contacts[i])
+		}
+	}
+
+	if len(candidates.contacts) > k_const {
+		candidates.PopShortList(k_const)
+	}
+
+	var findNodeResponse generated.FindNodeResponse
+
+	for i := range len(candidates.contacts) {
+		triple := generated.Triples{
+			Address:    candidates.contacts[i].Address.IP,
+			Port:       int32(candidates.contacts[i].Address.Port),
+			Kademliaid: []byte(candidates.contacts[i].ID.String()),
+		}
+		findNodeResponse.Triples = append(findNodeResponse.Triples, &triple)
+	}
+
+	payload, err := proto.Marshal(&findNodeResponse)
+	if err != nil {
+		slog.Error("error", "err", err)
+		return
+	}
+
+	if err := connection.SendTo(address, payload); err != nil {
+		slog.Error("error", "err", err)
+		return
 	}
 }
 
@@ -111,8 +191,25 @@ func (k *kademlia) handlePing(
 	}
 }
 
+func ParalelFindNode(req_id *KademliaID, kNet ports.Network, contact Contact, target *KademliaID, ans chan RPCResponse, remove chan Contact, wg *sync.WaitGroup) error {
+	ansFindNode, err := SendFindNode(req_id, kNet, contact, target)
+	if err != nil {
+		if errors.Is(err, syscall.ECONNREFUSED) {
+			remove <- contact
+		} else {
+			wg.Done()
+			return err
+		}
+	} else {
+		slog.Debug("Finded Nodes", "ansFindNode", ansFindNode)
+		ans <- *ansFindNode
+	}
+	wg.Done()
+	return nil
+}
+
 // LookupContact does an iterative search of the closest k nodes to a target ID
-func (kademlia *kademlia) LookupContact(target *KademliaID) ContactCandidates {
+func (k *kademlia) LookupContact(target *KademliaID) (*ContactCandidates, error) {
 	// 1. Obtain the initial closest contacts from the local routing table
 	var candidates ContactCandidates
 	var noNewClosest bool
@@ -121,46 +218,77 @@ func (kademlia *kademlia) LookupContact(target *KademliaID) ContactCandidates {
 
 	var alreadyContacted []Contact
 
-	candidates.Append(kademlia.RoutingTable.FindClosestContacts(target, k))
+	candidates.Append(k.RoutingTable.FindClosestContacts(target, k_const))
 	candidates.Sort()
 	closestNode := candidates.GetContact(0)
 	noNewClosest = false
 
-	for (!noNewClosest) && (probed == k) {
+	slog.Debug("Before Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", k_const)
+	for (!noNewClosest) && (probed != k_const) {
 		var wg sync.WaitGroup
 		ans := make(chan RPCResponse, alpha)
+		remove := make(chan Contact, alpha)
+		slog.Debug("In Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", k_const)
 
-		for nodeCounter := range k {
-			wg.Add(1)
-
-			go func() {
-				defer wg.Done()
-				contact := candidates.GetContact(nodeCounter)
-				if slices.Contains(alreadyContacted, contact) == false {
-					ansFindNode, err := SendFindNode(kademlia.network, contact.Address, target)
-					if err != nil {
-
-					}
-					ans <- *ansFindNode
-					alreadyContacted = append(alreadyContacted, contact)
-				}
-			}()
-		}
-
-		wg.Wait()
-		var new_candidates []Contact
-
-		for _ = range len(ans) {
-			candidatesAns := <-ans
-			for i := range len(candidatesAns.double) {
-				new_candidate := candidatesAns.double[i]
-				new_candidates = append(new_candidates, NewContact(new_candidate.id, new_candidate.address))
+		for nodeCounter := range min(alpha, candidates.Len()) {
+			slog.Debug("Counter", "nodeCounter", nodeCounter, "candidates", candidates.Len())
+			contact := candidates.GetContact(nodeCounter)
+			if slices.Contains(alreadyContacted, contact) == false {
+				k.mux.RLock()
+				req_id := k.me.ID
+				me_net := k.network
+				k.mux.RUnlock()
+				wg.Add(1)
+				go ParalelFindNode(req_id, me_net, contact, target, ans, remove, &wg)
+				alreadyContacted = append(alreadyContacted, contact)
 			}
 		}
 
-		candidates.Append(new_candidates)
-		candidates.Sort()
+		wg.Wait()
+		for range len(remove) {
+			to_remove := <-remove
+			k.RoutingTable.RemoveContact(to_remove)
+		}
 
+		var new_candidates []Contact
+		var new_candidates_id []KademliaID
+
+		for range len(ans) {
+			candidatesAns := <-ans
+			for i := range len(candidatesAns.double) {
+				new_candidate := candidatesAns.double[i]
+				new_contact := NewContact(new_candidate.id, new_candidate.address)
+				new_contact.CalcDistance(target)
+				if !slices.Contains(new_candidates_id, *new_contact.ID) {
+					new_candidates = append(new_candidates, new_contact)
+					new_candidates_id = append(new_candidates_id, *new_contact.ID)
+					slog.Debug("Candidates ID", "new_candidates_id", new_candidates_id)
+				}
+			}
+		}
+
+		var candidates_id []KademliaID
+
+		for i := range len(candidates.contacts) {
+			candidates_id = append(candidates_id, *candidates.contacts[i].ID)
+		}
+
+		slog.Debug("New candidates before removing", "new_candidates", new_candidates)
+		var new_candidates_without_candidates []Contact
+
+		for i := range len(new_candidates) {
+			if !slices.Contains(candidates_id, *new_candidates[i].ID) {
+				new_candidates_without_candidates = append(new_candidates_without_candidates, new_candidates[i])
+			}
+		}
+
+		candidates.Append(new_candidates_without_candidates)
+		slog.Debug("Candidates after find_node", "candidates", candidates)
+		candidates.Sort()
+		slog.Debug("Candidates after sort", "candidates", candidates)
+		for i := range len(candidates.contacts) {
+			slog.Debug("Distance", "distance", candidates.contacts[i].distance)
+		}
 		newClosestNode := candidates.GetContact(0)
 
 		if newClosestNode == closestNode {
@@ -168,7 +296,9 @@ func (kademlia *kademlia) LookupContact(target *KademliaID) ContactCandidates {
 		}
 
 		closestNode = newClosestNode
-		candidates.PopShortList(k)
+		if candidates.Len() > k_const {
+			candidates.PopShortList(k_const)
+		}
 
 		probed = 0
 		for i := range len(candidates.contacts) {
@@ -178,54 +308,7 @@ func (kademlia *kademlia) LookupContact(target *KademliaID) ContactCandidates {
 		}
 	}
 
-	return candidates
-}
-
-// LookupData searches for the value belonging to a key (hash)
-// If it finds the value locally, it returns (data, nil, true)
-// If it doesn't, it returns (nil, kClosestContacts, false)
-func (kademlia *kademlia) LookupData(hash string) ([]byte, []Contact, bool) {
-	kademlia.mux.RLock()
-	val, exists := kademlia.DataStore[hash]
-	kademlia.mux.RUnlock()
-
-	// If the value is stored locally, return it immediately
-	if exists {
-		return val, nil, true
-	}
-
-	targetID := NewKademliaID(hash)
-	closest := kademlia.LookupContact(targetID).contacts
-
-	// TODO: Send RPCs FIND_VALUE to the closest nodes until
-	// obtaining the value or running out of contacts.
-
-	return nil, closest, false
-}
-
-// Store calculates the SHA-256 key of the data, saves it locally,
-// searches for the closest k nodes, and sends a STORE RPC to each one.
-func (kademlia *kademlia) Store(data []byte) string {
-	// 1. Calculate K = SHA-256(data) (32 bytes / 64 hex char to match IDLength=32)
-	hashBytes := sha256.Sum256(data)
-	keyHex := hex.EncodeToString(hashBytes[:])
-	keyID := NewKademliaID(keyHex)
-
-	// 2. Save a copy in the local DataStore safely
-	kademlia.mux.Lock()
-	kademlia.DataStore[keyHex] = data
-	kademlia.mux.Unlock()
-
-	// 3. Search for the closest k nodes to the key
-	targetNodes := kademlia.LookupContact(keyID)
-
-	// 4. Send a STORE RPC to each of the closest k nodes
-	for _, contact := range targetNodes.contacts {
-		// go kademlia.Network.SendStoreRPC(&contact, keyHex, data)
-		_ = contact
-	}
-
-	return keyHex
+	return &candidates, nil
 }
 
 func (k *kademlia) Ping(address entities.Address) (time.Duration, error) {
