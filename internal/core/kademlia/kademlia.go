@@ -66,6 +66,8 @@ func (k *kademlia) Run() error {
 			slog.Error("todo: message", "err", err)
 			if err == adapters.ErrConnectionClosed {
 				break
+			} else {
+				continue
 			}
 		}
 		k.handleRequest(connection, payload, *address)
