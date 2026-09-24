@@ -58,6 +58,7 @@ func AddressToID(address entities.Address) *KademliaID {
 func (k *kademlia) Join(knownContact *entities.Address) {
 	// Already has a NodeId cause we made it mandatory to create a NewKademlia
 	id := AddressToID(*knownContact)
+	slog.Info("ID finded with IP|port combination", "id", id, "k.me.ID", k.me.ID)
 	slog.Debug("New Kademlia ID generated from Address", "id", id)
 	k.RoutingTable.AddContact(NewContact(
 		id,
@@ -82,10 +83,10 @@ func (k *kademlia) Run() error {
 	slog.Info("Server started", "ip", ip, "port", k.me.Address.Port)
 
 	if k.firstContact != nil {
-		slog.Debug("Joining the Kademlia network")
+		slog.Info("Joining the Kademlia network")
 		k.Join(k.firstContact)
 	} else {
-		slog.Debug("No known contact given to join the network")
+		slog.Info("No known contact given to join the network")
 	}
 
 	for {
@@ -372,6 +373,8 @@ func (k *kademlia) LookupContact(target *KademliaID) (*ContactCandidates, error)
 			}
 		}
 	}
+	slog.Info("Stopping the Lookup Loop", "!noNewClosest", !noNewClosest, "probed != k_const", probed != k_const)
+	slog.Info("State of bucket", "k.RoutingTable.FindClosestContacts(k.me.ID, 10)", k.RoutingTable.FindClosestContacts(k.me.ID, 10))
 
 	return &candidates, nil
 }

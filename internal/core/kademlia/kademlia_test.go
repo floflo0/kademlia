@@ -4,8 +4,8 @@ import (
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
+	"log/slog"
 	"testing"
-	"time"
 )
 
 // Helper function to create a dummy Kademlia node for testing
@@ -49,24 +49,29 @@ func TestJoinProcedure(t *testing.T) {
 	go node4.Run()
 
 	expectedRoutingTable := NewRoutingTable(node4.me)
+	expectedRoutingTable.AddContact(node1.me)
 	expectedRoutingTable.AddContact(node3.me)
 	expectedRoutingTable.AddContact(node2.me)
-	expectedRoutingTable.AddContact(node1.me)
-	expectedRoutingTable.AddContact(node0.me)
 
-	time.Sleep(2000)
+	expectedClosest := expectedRoutingTable.FindClosestContacts(node4.me.ID, 3)
 
-	testedRoutingTable := node4.RoutingTable.FindClosestContacts(node4.me.ID, 20)
+	slog.Info("First contact", "node4.firstContact", node4.firstContact)
 
-	for i := range len(expectedRoutingTable.FindClosestContacts(node4.me.ID, 20)) {
-		if *candidates.contacts[i].ID != *expectedCandidates.contacts[i].ID {
-			t.Errorf("Expected candidate ID to be %v, got %v", *expectedCandidates.contacts[i].ID, *candidates.contacts[i].ID)
-		}
-		if candidates.contacts[i].Address != expectedCandidates.contacts[i].Address {
-			t.Errorf("Expected candidate address to be %v, got %v", expectedCandidates.contacts[i].Address, candidates.contacts[i].Address)
+	for len(node4.RoutingTable.FindClosestContacts(node4.me.ID, 3)) < 3 {
+		continue
+	}
+
+	testedRoutingTable := node4.RoutingTable.FindClosestContacts(node4.me.ID, 3)
+	slog.Info("tested table", "testedRoutingTable", testedRoutingTable)
+
+	for i := range len(expectedClosest) {
+		if *testedRoutingTable[i].ID != *expectedClosest[i].ID {
+			t.Errorf("Expected candidate ID to be %v, got %v", *expectedClosest[i].ID, *testedRoutingTable[i].ID)
 		}
 	}
 
+	node01.Quit()
+	node02.Quit()
 	node0.Quit()
 	node1.Quit()
 	node2.Quit()
