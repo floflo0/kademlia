@@ -6,8 +6,9 @@ import "ping.proto";
 import "find_node.proto";
 
 message Message {
+  bytes kademlia_id = 1;
   oneof payload {
-    Ping ping = 1;
-    FindNode find_node = 2;
+    Ping ping = 2;
+    FindNode find_node = 3;
   };
 }

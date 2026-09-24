@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"container/list"
+	"log/slog"
 )
 
 // bucket definition
@@ -19,7 +20,8 @@ func newBucket() *bucket {
 
 // AddContact adds the Contact to the front of the bucket
 // or moves it to the front of the bucket if it already existed
-func (bucket *bucket) AddContact(contact Contact) {
+// If the bucket is Full returns the pointer to the contact
+func (bucket *bucket) AddContact(contact Contact) *Contact {
 	var element *list.Element
 	for e := bucket.list.Front(); e != nil; e = e.Next() {
 		nodeID := e.Value.(Contact).ID
@@ -32,10 +34,14 @@ func (bucket *bucket) AddContact(contact Contact) {
 	if element == nil {
 		if bucket.list.Len() < bucketSize {
 			bucket.list.PushFront(contact)
+		} else {
+			slog.Info("Bucket full", "bucket.list.Len() < bucketSize", bucket.list.Len() < bucketSize)
+			return &contact
 		}
 	} else {
 		bucket.list.MoveToFront(element)
 	}
+	return nil
 }
 
 // RemoveContact remove the Contact from the bucket

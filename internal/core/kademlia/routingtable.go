@@ -1,12 +1,12 @@
 package kademlia
 
-const bucketSize = 20
+const bucketSize = 8
 
 // RoutingTable definition
 // keeps a refrence contact of me and an array of buckets
 type RoutingTable struct {
 	me      Contact
-	buckets [IDLength * 8]*bucket
+	buckets [IDLength * bucketSize]*bucket
 }
 
 // NewRoutingTable returns a new instance of a RoutingTable
