@@ -6,8 +6,10 @@ import (
 )
 
 type MockKademlia struct {
-	RunFunction  func() error
-	PingFunction func(address entities.Address) (time.Duration, error)
+	RunFunction           func() error
+	PingFunction          func(address entities.Address) (time.Duration, error)
+	GetBucketsFunction    func() []*bucket
+	GetStoredKeysFunction func() []string
 }
 
 func (k *MockKademlia) Run() error {
@@ -22,4 +24,18 @@ func (k *MockKademlia) Ping(address entities.Address) (time.Duration, error) {
 		return k.PingFunction(address)
 	}
 	return 0, nil
+}
+
+func (k *MockKademlia) GetBuckets() []*bucket {
+	if k.GetBucketsFunction != nil {
+		return k.GetBucketsFunction()
+	}
+	return []*bucket{}
+}
+
+func (k *MockKademlia) GetStoredKeys() []string {
+	if k.GetStoredKeysFunction != nil {
+		return k.GetStoredKeysFunction()
+	}
+	return []string{}
 }
