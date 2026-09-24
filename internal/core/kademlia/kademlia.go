@@ -88,6 +88,26 @@ func (k *kademlia) Quit() error {
 	return nil
 }
 
+func (k *kademlia) Update(
+	id KademliaID,
+	address entities.Address,
+) {
+	bucketIndex := k.RoutingTable.getBucketIndex(&id)
+	bucket := k.RoutingTable.buckets[bucketIndex]
+	contact := bucket.AddContact(NewContact(&id, address))
+	if contact != nil {
+		oldestContact := bucket.list.Back().Value.(Contact)
+		_, err := k.Ping(oldestContact.Address)
+		if err != nil {
+			slog.Info("Old contact not responding")
+			bucket.RemoveContact(oldestContact)
+			bucket.AddContact(*contact)
+		} else {
+			slog.Info("Contact not added")
+		}
+	}
+}
+
 func (k *kademlia) handleRequest(
 	connection ports.ListenConnection,
 	payload []byte,
@@ -99,6 +119,7 @@ func (k *kademlia) handleRequest(
 		return
 	}
 
+	k.Update(KademliaID(message.KademliaId), address)
 	switch payload := message.Payload.(type) {
 	case *generated.Message_Ping:
 		k.handlePing(connection, payload.Ping, address)
@@ -321,6 +342,7 @@ func (k *kademlia) Ping(address entities.Address) (time.Duration, error) {
 	requestUuid := uuid.New().String()
 
 	pingMessage := generated.Message{
+		KademliaId: k.me.ID[:],
 		Payload: &generated.Message_Ping{
 			Ping: &generated.Ping{
 				RequestUuid: requestUuid,
