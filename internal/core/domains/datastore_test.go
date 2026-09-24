@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-func TestDataStore_PutGet_Succes(t *testing.T) {
+func TestDataStore_PutGet_Success(t *testing.T) {
 	ds := NewDataStore()
-	value := []byte("Hola Kademlia")
+	value := "Hola Kademlia"
 
-	hash := sha256.Sum256(value)
+	hash := sha256.Sum256([]byte(value))
 	key := hex.EncodeToString(hash[:])
 
 	// Put test
@@ -27,14 +27,14 @@ func TestDataStore_PutGet_Succes(t *testing.T) {
 		t.Fatalf("We expected success, but it failed with: %v", err)
 	}
 
-	if string(got) != string(value) {
+	if got != value {
 		t.Errorf("We obtained %s but we were expecting %s", got, value)
 	}
 }
 
 func TestDataStore_Put_InvalidHash(t *testing.T) {
 	ds := NewDataStore()
-	value := []byte("Hola Kademlia")
+	value := "Hola Kademlia"
 	fakeKey := "0123456789abcdef0123456789abcdef0123456789abcdef"
 
 	err := ds.Put(fakeKey, value)
@@ -61,10 +61,9 @@ func TestDataStore_Concurrency(t *testing.T) {
 		wg.Add(1)
 		go func(val string) {
 			defer wg.Done()
-			data := []byte(val)
-			hash := sha256.Sum256(data)
+			hash := sha256.Sum256([]byte(val))
 			key := hex.EncodeToString(hash[:])
-			_ = ds.Put(key, data)
+			_ = ds.Put(key, val)
 		}(string(rune(i)))
 	}
 

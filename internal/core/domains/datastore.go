@@ -15,13 +15,13 @@ var (
 // local storage of the node's memory
 type DataStore struct {
 	mu   sync.RWMutex
-	data map[string][]byte
+	data map[string]string
 }
 
 // NewDataStore initializes and returns a new instance of the storage
 func NewDataStore() *DataStore {
 	return &DataStore{
-		data: make(map[string][]byte),
+		data: make(map[string]string),
 	}
 }
 
@@ -30,9 +30,9 @@ func NewDataStore() *DataStore {
 // Where:
 //   - key: The expected 64-character hex string of the value's SHA-256 hash.
 //   - value: The raw binary data (blob) to store.
-func (ds *DataStore) Put(key string, value []byte) error {
+func (ds *DataStore) Put(key string, value string) error {
 
-	hash := sha256.Sum256(value)
+	hash := sha256.Sum256([]byte(value))
 	expectedKey := hex.EncodeToString(hash[:])
 
 	// validate Kademlia's requirement
@@ -54,13 +54,13 @@ func (ds *DataStore) Put(key string, value []byte) error {
 //   - key: The 64-character hex string key to look up.
 //
 // Returns the binary blob ([]byte) if found, or ErrKeyNotFound if the key does not exist.
-func (ds *DataStore) Get(key string) ([]byte, error) {
+func (ds *DataStore) Get(key string) (string, error) {
 	ds.mu.RLock()
 	defer ds.mu.RUnlock()
 
 	val, exists := ds.data[key]
 	if !exists {
-		return nil, ErrKeyNotFound
+		return "", ErrKeyNotFound
 	}
 
 	return val, nil
