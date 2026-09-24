@@ -93,7 +93,7 @@ func (k *kademlia) Run() error {
 		payload, address, err := connection.Receive()
 		if err != nil {
 			slog.Error("todo: message", "err", err)
-			if err == adapters.ErrConnectionClosed {
+			if err == adapters.ErrConnectionClosed || err == adapters.ErrClosedNetworkConnection {
 				break
 			} else {
 				continue
