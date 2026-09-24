@@ -88,7 +88,7 @@ func (k *kademlia) Quit() error {
 	return nil
 }
 
-func (k *kademlia) Update(
+func (k *kademlia) UpdateRoutingTable(
 	id KademliaID,
 	address entities.Address,
 ) {
@@ -119,7 +119,7 @@ func (k *kademlia) handleRequest(
 		return
 	}
 
-	k.Update(KademliaID(message.KademliaId), address)
+	k.UpdateRoutingTable(KademliaID(message.KademliaId), address)
 	switch payload := message.Payload.(type) {
 	case *generated.Message_Ping:
 		k.handlePing(connection, payload.Ping, address)
