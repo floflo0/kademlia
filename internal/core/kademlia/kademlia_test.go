@@ -20,13 +20,13 @@ func createTestNode(port int, id *KademliaID, net ports.Network, knownContact *e
 // Test the joining procedure
 func TestJoinProcedure(t *testing.T) {
 	net := adapters.NewMockNetworkAdapter()
-	node01 := createTestNode(7997, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000091"), net, nil)
-	node02 := createTestNode(7998, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000092"), net, nil)
-	node0 := createTestNode(7999, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000090"), net, nil)
-	node1 := createTestNode(8000, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000"), net, nil)
-	node2 := createTestNode(8001, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028"), net, nil)
-	node3 := createTestNode(8002, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000024"), net, nil)
-	node4 := createTestNode(8003, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000025"), net, &entities.Address{IP: "127.0.0.1", Port: 8002})
+	node01 := createTestNode(7997, NewKademliaID("584f29d78cfc54f4d50d39206e6179aaf6a3ba94cf196cd46e982184dba7500e"), net, nil)
+	node02 := createTestNode(7998, NewKademliaID("865a5e7a3dff6a43f9a6d5891408dc9b633a776374b78ca869e82b5915699788"), net, nil)
+	node0 := createTestNode(7999, NewKademliaID("c2ca635f8aaa10cf452b46f8b76f87e808f16bc386d1dadffb0738c6013412560"), net, nil)
+	node1 := createTestNode(8000, NewKademliaID("82d3b0c2c9d99d3c3b4955a37847e263bea9804713457a0524c37ff460aa2387"), net, nil)
+	node2 := createTestNode(8001, NewKademliaID("04d7d678f7da903f3fda66d0571820524d776048d100e5281398478f19800a18"), net, nil)
+	node3 := createTestNode(8002, NewKademliaID("68cb53c968df317fba321af9ea0328edd371b64087528316e1eccdde48712a69"), net, nil)
+	node4 := createTestNode(8003, NewKademliaID("2255b708835f6f174f040e0cf049a7717874e176d27d621fa9430b3efb611aa3"), net, &entities.Address{IP: "127.0.0.1", Port: 8002})
 
 	node01.RoutingTable.AddContact(node0.me)
 	node01.RoutingTable.AddContact(node02.me)
