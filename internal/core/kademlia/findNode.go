@@ -27,6 +27,7 @@ func SendFindNode(requester_id *KademliaID, net ports.Network, recipient Contact
 	}
 
 	findNodeMessage := generated.Message{
+		KademliaId: requester_id[:],
 		Payload: &generated.Message_FindNode{
 			FindNode: &generated.FindNode{
 				TargetId:    target[:],
