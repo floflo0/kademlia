@@ -5,14 +5,25 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func getFlags(command *cobra.Command) []string {
+func getCompletions(command *cobra.Command) []Completion {
 	command.InitDefaultHelpFlag()
-	flags := make([]string, 0)
+	items := make([]Completion, 0)
+	for _, sub := range command.Commands() {
+		if sub.IsAvailableCommand() {
+			items = append(
+				items,
+				Completion{
+					Name:     sub.Name(),
+					Children: getCompletions(sub),
+				},
+			)
+		}
+	}
 	command.Flags().VisitAll(func(flag *pflag.Flag) {
-		flags = append(flags, "--"+flag.Name)
+		items = append(items, Completion{Name: "--" + flag.Name})
 		if flag.Shorthand != "" {
-			flags = append(flags, "-"+flag.Shorthand)
+			items = append(items, Completion{Name: "-" + flag.Shorthand})
 		}
 	})
-	return flags
+	return items
 }

@@ -63,6 +63,6 @@ func (c *pingCommand) Execute(args []string) error {
 	return command.Execute()
 }
 
-func (c *pingCommand) GetFlags() []string {
-	return getFlags(c.buildCommand())
+func (c *pingCommand) GetCompletions() []Completion {
+	return getCompletions(c.buildCommand())
 }

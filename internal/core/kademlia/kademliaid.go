@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 )
 
@@ -57,7 +58,7 @@ func (kademliaID KademliaID) Equals(otherKademliaID *KademliaID) bool {
 // through a bitwise XOR operation betweeen kademliaID and target
 func (kademliaID KademliaID) CalcDistance(target *KademliaID) *KademliaID {
 	result := KademliaID{}
-	for i := 0; i < IDLength; i++ {
+	for i := range IDLength {
 		result[i] = kademliaID[i] ^ target[i]
 	}
 	return &result
@@ -66,4 +67,8 @@ func (kademliaID KademliaID) CalcDistance(target *KademliaID) *KademliaID {
 // String returns a simple string representation of a KademliaID
 func (kademliaID *KademliaID) String() string {
 	return hex.EncodeToString(kademliaID[0:IDLength])
+}
+
+func (id *KademliaID) ShortString() string {
+	return fmt.Sprintf("%04x...%04x", id[:4], id[IDLength-4:])
 }

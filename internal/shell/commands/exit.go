@@ -30,8 +30,8 @@ func (c *exitCommand) Execute(args []string) error {
 	return command.Execute()
 }
 
-func (c *exitCommand) GetFlags() []string {
-	return getFlags(c.buildCommand())
+func (c *exitCommand) GetCompletions() []Completion {
+	return getCompletions(c.buildCommand())
 }
 
 func run(cmd *cobra.Command, args []string) {
