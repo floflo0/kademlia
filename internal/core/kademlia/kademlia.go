@@ -1,7 +1,9 @@
 package kademlia
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
@@ -31,18 +33,37 @@ type kademlia struct {
 	network      ports.Network
 	DataStore    map[string][]byte
 	Connection   ports.ListenConnection
+	firstContact *entities.Address
 	me           Contact
 	mux          sync.RWMutex
 }
 
 // NewKademlia creates and initializes a new instance of the Kademlia node
-func NewKademlia(me Contact, net ports.Network) *kademlia {
+func NewKademlia(me Contact, net ports.Network, firstContact *entities.Address) *kademlia {
 	return &kademlia{
 		RoutingTable: NewRoutingTable(me),
 		network:      net,
 		DataStore:    make(map[string][]byte),
+		firstContact: firstContact,
 		me:           me,
 	}
+}
+
+func AddressToID(address entities.Address) *KademliaID {
+	hash := sha256.Sum256([]byte(address.IP + fmt.Sprint(address.Port)))
+	id := (*KademliaID)(&hash)
+	return id
+}
+
+func (k *kademlia) Join(knownContact *entities.Address) {
+	// Already has a NodeId cause we made it mandatory to create a NewKademlia
+	id := AddressToID(*knownContact)
+	slog.Debug("New Kademlia ID generated from Address", "id", id)
+	k.RoutingTable.AddContact(NewContact(
+		id,
+		*knownContact,
+	))
+	k.LookupContact(k.me.ID)
 }
 
 func (k *kademlia) Run() error {
@@ -59,6 +80,13 @@ func (k *kademlia) Run() error {
 		return err
 	}
 	slog.Info("Server started", "ip", ip, "port", k.me.Address.Port)
+
+	if k.firstContact != nil {
+		slog.Debug("Joining the Kademlia network")
+		k.Join(k.firstContact)
+	} else {
+		slog.Debug("No known contact given to join the network")
+	}
 
 	for {
 		payload, address, err := connection.Receive()
@@ -266,9 +294,25 @@ func (k *kademlia) LookupContact(target *KademliaID) (*ContactCandidates, error)
 		}
 
 		wg.Wait()
+		var removed []Contact
 		for range len(remove) {
 			to_remove := <-remove
 			k.RoutingTable.RemoveContact(to_remove)
+			removed = append(removed, to_remove)
+		}
+
+		for i := range len(removed) {
+			for j := range len(candidates.contacts) {
+				if removed[i] == candidates.contacts[j] {
+					candidates.contacts = append(candidates.contacts[:j], candidates.contacts[j+1:]...)
+				}
+			}
+		}
+
+		// For race condition, as we have removed all the node that didn't answered
+		// we only have the nodes that responded so we have to update the routing table
+		for i := range len(candidates.contacts) {
+			k.UpdateRoutingTable(*candidates.contacts[i].ID, candidates.contacts[i].Address)
 		}
 
 		var new_candidates []Contact
