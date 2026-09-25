@@ -24,9 +24,10 @@ func newBucket() *bucket {
 // or moves it to the front of the bucket if it already existed
 // If the bucket is Full returns the pointer to the contact
 func (b *bucket) AddContact(contact Contact) *Contact {
+	b.mux.Lock()
+	defer b.mux.Unlock()
 	var element *list.Element
 
-	b.mux.RLock()
 	for e := b.list.Front(); e != nil; e = e.Next() {
 		nodeID := e.Value.(Contact).ID
 
@@ -34,30 +35,27 @@ func (b *bucket) AddContact(contact Contact) *Contact {
 			element = e
 		}
 	}
-	b.mux.RUnlock()
 
 	if element == nil {
 		bucketLen := b.list.Len()
 		if bucketLen < bucketSize {
-			b.mux.Lock()
 			b.list.PushFront(contact)
-			b.mux.Unlock()
 		} else {
 			slog.Info("Bucket full", "bucket.list.Len() < bucketSize", bucketLen < bucketSize)
 			return &contact
 		}
 	} else {
-		b.mux.Lock()
 		b.list.MoveToFront(element)
-		b.mux.Unlock()
 	}
 	return nil
 }
 
 // RemoveContact remove the Contact from the bucket
 func (b *bucket) RemoveContact(contact Contact) {
+	b.mux.Lock()
+	defer b.mux.Unlock()
 	var element *list.Element
-	b.mux.RLock()
+
 	for e := b.list.Front(); e != nil; e = e.Next() {
 		nodeID := e.Value.(Contact).ID
 
@@ -65,12 +63,9 @@ func (b *bucket) RemoveContact(contact Contact) {
 			element = e
 		}
 	}
-	b.mux.RUnlock()
 
 	if element != nil {
-		b.mux.Lock()
 		b.list.Remove(element)
-		b.mux.Unlock()
 	}
 }
 
@@ -96,9 +91,9 @@ func (b *bucket) Len() int {
 }
 
 func (b *bucket) GetContacts() []Contact {
+	b.mux.RLock()
 	contacts := make([]Contact, b.list.Len())
 	i := 0
-	b.mux.RLock()
 	for e := b.list.Front(); e != nil; e = e.Next() {
 		contacts[i] = e.Value.(Contact)
 		i++

@@ -26,11 +26,10 @@ func main() {
 				},
 			),
 			network,
-			nil,
 		)
 
 		go func() {
-			err := kademlia.Run()
+			err := kademlia.Run(nil)
 			slog.Error("Kademlia run failed", "err", err)
 		}()
 

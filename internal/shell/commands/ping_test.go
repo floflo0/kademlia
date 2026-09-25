@@ -17,7 +17,7 @@ func NewMockKademlia(
 	pingFunction func(address entities.Address) (time.Duration, error),
 ) kademlia.Kademlia {
 	mockKademlia := &kademlia.MockKademlia{
-		RunFunction: func() error {
+		RunFunction: func(firstContact *entities.Address) error {
 			t.Fatal("Run should not be called")
 			return nil
 		},

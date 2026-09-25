@@ -6,15 +6,15 @@ import (
 )
 
 type MockKademlia struct {
-	RunFunction           func() error
+	RunFunction           func(firstContact *entities.Address) error
 	PingFunction          func(address entities.Address) (time.Duration, error)
 	GetBucketsFunction    func() []*bucket
 	GetStoredKeysFunction func() []string
 }
 
-func (k *MockKademlia) Run() error {
+func (k *MockKademlia) Run(firstContact *entities.Address) error {
 	if k.RunFunction != nil {
-		return k.RunFunction()
+		return k.RunFunction(nil)
 	}
 	return nil
 }

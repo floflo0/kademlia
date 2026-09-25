@@ -24,7 +24,7 @@ const b = 1
 const timeout = 1000 // ms
 
 type Kademlia interface {
-	Run() error
+	Run(firstContact *entities.Address) error
 	Ping(address entities.Address) (time.Duration, error)
 	GetBuckets() []*bucket
 	GetStoredKeys() []string
@@ -41,12 +41,11 @@ type kademlia struct {
 }
 
 // NewKademlia creates and initializes a new instance of the Kademlia node
-func NewKademlia(me Contact, net ports.Network, firstContact *entities.Address) *kademlia {
+func NewKademlia(me Contact, net ports.Network) *kademlia {
 	return &kademlia{
 		RoutingTable: NewRoutingTable(me),
 		network:      net,
 		dataStore:    NewDataStore(),
-		firstContact: firstContact,
 		me:           me,
 	}
 }
@@ -66,16 +65,12 @@ func (k *kademlia) Join(knownContact *entities.Address) {
 		id,
 		*knownContact,
 	))
-	k.mux.Lock()
 	meId := k.me.ID
-	k.mux.Unlock()
 	k.LookupContact(meId)
 }
 
-func (k *kademlia) Run() error {
-	k.mux.RLock()
+func (k *kademlia) Run(firstContact *entities.Address) error {
 	connection, err := k.network.Listen(k.me.Address)
-	k.mux.RUnlock()
 	if err != nil {
 		return err
 	}
@@ -89,9 +84,6 @@ func (k *kademlia) Run() error {
 	}
 	slog.Info("Server started", "ip", ip, "port", k.me.Address.Port)
 
-	k.mux.RLock()
-	firstContact := k.firstContact
-	k.mux.RUnlock()
 	if firstContact != nil {
 		slog.Info("Joining the Kademlia network")
 		k.Join(firstContact)

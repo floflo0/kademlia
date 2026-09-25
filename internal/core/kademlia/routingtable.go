@@ -26,18 +26,14 @@ func NewRoutingTable(me Contact) *RoutingTable {
 // AddContact add a new contact to the correct Bucket
 func (r *RoutingTable) AddContact(contact Contact) {
 	bucketIndex := r.getBucketIndex(contact.ID)
-	r.mux.RLock()
 	bucket := r.buckets[bucketIndex]
-	r.mux.RUnlock()
 	bucket.AddContact(contact)
 }
 
 // RemoveContact remove a contact from his bucket
 func (r *RoutingTable) RemoveContact(contact Contact) {
 	bucketIndex := r.getBucketIndex(contact.ID)
-	r.mux.RLock()
 	bucket := r.buckets[bucketIndex]
-	r.mux.RUnlock()
 	bucket.RemoveContact(contact)
 }
 
@@ -45,23 +41,17 @@ func (r *RoutingTable) RemoveContact(contact Contact) {
 func (r *RoutingTable) FindClosestContacts(target *KademliaID, count int) []Contact {
 	var candidates ContactCandidates
 	bucketIndex := r.getBucketIndex(target)
-	r.mux.RLock()
 	bucket := r.buckets[bucketIndex]
-	r.mux.RUnlock()
 
 	candidates.Append(bucket.GetContactAndCalcDistance(target))
 
 	for i := 1; (bucketIndex-i >= 0 || bucketIndex+i < IDLength*8) && candidates.Len() < count; i++ {
 		if bucketIndex-i >= 0 {
-			r.mux.RLock()
 			bucket = r.buckets[bucketIndex-i]
-			r.mux.RUnlock()
 			candidates.Append(bucket.GetContactAndCalcDistance(target))
 		}
 		if bucketIndex+i < numberBuckets {
-			r.mux.RLock()
 			bucket = r.buckets[bucketIndex+i]
-			r.mux.RUnlock()
 			candidates.Append(bucket.GetContactAndCalcDistance(target))
 		}
 	}
@@ -77,9 +67,7 @@ func (r *RoutingTable) FindClosestContacts(target *KademliaID, count int) []Cont
 
 // getBucketIndex get the correct Bucket index for the KademliaID
 func (r *RoutingTable) getBucketIndex(id *KademliaID) int {
-	r.mux.RLock()
 	meId := r.me.ID
-	r.mux.RUnlock()
 	distance := id.CalcDistance(meId)
 	for i := range IDLength {
 		for j := range 8 {
