@@ -94,7 +94,7 @@ func TestNewKademlia(t *testing.T) {
 		t.Fatalf("Expected NewKademlia to return a non-nil instance")
 	}
 
-	if node.DataStore == nil {
+	if node.dataStore == nil {
 		t.Errorf("Expected DataStore map to be initialized, got nil")
 	}
 

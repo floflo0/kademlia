@@ -26,12 +26,14 @@ const timeout = 1000 // ms
 type Kademlia interface {
 	Run() error
 	Ping(address entities.Address) (time.Duration, error)
+	GetBuckets() []*bucket
+	GetStoredKeys() []string
 }
 
 type kademlia struct {
 	RoutingTable *RoutingTable
 	network      ports.Network
-	DataStore    map[string][]byte
+	dataStore    *DataStore
 	Connection   ports.ListenConnection
 	firstContact *entities.Address
 	me           Contact
@@ -429,4 +431,12 @@ func (k *kademlia) Ping(address entities.Address) (time.Duration, error) {
 	}
 
 	return elapsedTime, nil
+}
+
+func (k *kademlia) GetBuckets() []*bucket {
+	return k.RoutingTable.getBuckets()
+}
+
+func (k *kademlia) GetStoredKeys() []string {
+	return k.dataStore.Keys()
 }

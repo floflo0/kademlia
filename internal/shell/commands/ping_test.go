@@ -6,7 +6,7 @@ import (
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/kademlia"
 	"kademlia/internal/shell/commands"
-	"slices"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -175,18 +175,28 @@ func TestPingCommand_Execute_PingFail(t *testing.T) {
 	}
 }
 
-func TestPingCommand_GetFlags(t *testing.T) {
+func TestPingCommand_GetCompletions(t *testing.T) {
 	mockKademlia := NewMockKademlia(
 		t,
 		func(address entities.Address) (time.Duration, error) {
-			t.Fatal("GetFlags() called Ping")
+			t.Fatal("GetCompletions() called Ping")
 			return 0, nil
 		},
 	)
 	command := commands.NewPingCommand(mockKademlia)
-	flags := command.GetFlags()
-	exepectedFlags := []string{"--help", "-h"}
-	if flags == nil || !slices.Equal(flags, exepectedFlags) {
-		t.Fatalf("GetFlags() flags = %v; want %v", flags, exepectedFlags)
+	completions := command.GetCompletions()
+	exepectedCompletions := []commands.Completion{
+		{Name: "--help"},
+		{Name: "-h"},
+	}
+	if completions == nil || !reflect.DeepEqual(
+		completions,
+		exepectedCompletions,
+	) {
+		t.Fatalf(
+			"GetCompletions() completions = %v; want %v",
+			completions,
+			exepectedCompletions,
+		)
 	}
 }

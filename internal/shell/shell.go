@@ -22,19 +22,31 @@ func NewShell(kademlia kademlia.Kademlia) *Shell {
 		commands: map[string]commands.Command{
 			"exit": commands.NewExitCommand(),
 			"ping": commands.NewPingCommand(kademlia),
+			"show": commands.NewShowCommand(kademlia),
 		},
 	}
+}
+
+func toPcItems(
+	completions []commands.Completion,
+) []readline.PrefixCompleterInterface {
+	items := make([]readline.PrefixCompleterInterface, 0, len(completions))
+	for _, c := range completions {
+		items = append(
+			items,
+			readline.PcItem(c.Name, toPcItems(c.Children)...),
+		)
+	}
+	return items
 }
 
 func (s *Shell) completer() *readline.PrefixCompleter {
 	items := make([]readline.PrefixCompleterInterface, 0, len(s.commands))
 	for name, command := range s.commands {
-		flags := command.GetFlags()
-		flagItems := make([]readline.PrefixCompleterInterface, 0, len(flags))
-		for _, flag := range flags {
-			flagItems = append(flagItems, readline.PcItem(flag))
-		}
-		items = append(items, readline.PcItem(name, flagItems...))
+		items = append(
+			items,
+			readline.PcItem(name, toPcItems(command.GetCompletions())...),
+		)
 	}
 	return readline.NewPrefixCompleter(items...)
 }

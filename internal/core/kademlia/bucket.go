@@ -6,18 +6,18 @@ import (
 	"sync"
 )
 
-// bucket definition
-// contains a List
+const bucketSize = 8
+
 type bucket struct {
 	list *list.List
 	mux  sync.RWMutex
 }
 
-// newBucket returns a new instance of a bucket
+// newBucket returns a new instance of a bucket.
 func newBucket() *bucket {
-	bucket := &bucket{}
-	bucket.list = list.New()
-	return bucket
+	return &bucket{
+		list: list.New(),
+	}
 }
 
 // AddContact adds the Contact to the front of the bucket
@@ -93,4 +93,15 @@ func (b *bucket) Len() int {
 	b.mux.RLock()
 	defer b.mux.RUnlock()
 	return b.list.Len()
+
+func (b *bucket) GetContacts() []Contact {
+	contacts := make([]Contact, b.list.Len())
+	i := 0
+  b.mux.RLock()
+	for e := b.list.Front(); e != nil; e = e.Next() {
+		contacts[i] = e.Value.(Contact)
+		i++
+	}
+  b.mux.RUnlock()
+	return contacts
 }

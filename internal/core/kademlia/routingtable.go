@@ -3,22 +3,24 @@ package kademlia
 import "sync"
 
 const bucketSize = 20
+const numberBuckets = IDLength * 8
 
 // RoutingTable definition
 // keeps a refrence contact of me and an array of buckets
 type RoutingTable struct {
 	me      Contact
 	mux     sync.RWMutex
-	buckets [IDLength * 8]*bucket
+	buckets [numberBuckets]*bucket
 }
 
-// NewRoutingTable returns a new instance of a RoutingTable
+// NewRoutingTable returns a new instance of a RoutingTable.
 func NewRoutingTable(me Contact) *RoutingTable {
-	routingTable := &RoutingTable{}
-	for i := 0; i < IDLength*8; i++ {
+	routingTable := &RoutingTable{
+		me: me,
+	}
+	for i := range numberBuckets {
 		routingTable.buckets[i] = newBucket()
 	}
-	routingTable.me = me
 	return routingTable
 }
 
@@ -57,7 +59,7 @@ func (r *RoutingTable) FindClosestContacts(target *KademliaID, count int) []Cont
 			r.mux.RUnlock()
 			candidates.Append(bucket.GetContactAndCalcDistance(target))
 		}
-		if bucketIndex+i < IDLength*8 {
+		if bucketIndex+i < numberBuckets {
 			r.mux.RLock()
 			bucket = r.buckets[bucketIndex+i]
 			r.mux.RUnlock()
@@ -80,13 +82,16 @@ func (r *RoutingTable) getBucketIndex(id *KademliaID) int {
 	meId := r.me.ID
 	r.mux.RUnlock()
 	distance := id.CalcDistance(meId)
-	for i := 0; i < IDLength; i++ {
-		for j := 0; j < 8; j++ {
+	for i := range IDLength {
+		for j := range 8 {
 			if (distance[i]>>uint8(7-j))&0x1 != 0 {
 				return i*8 + j
 			}
 		}
 	}
+	return numberBuckets - 1
+}
 
-	return IDLength*8 - 1
+func (t *RoutingTable) getBuckets() []*bucket {
+	return t.buckets[:]
 }
