@@ -79,6 +79,6 @@ func (r *RoutingTable) getBucketIndex(id *KademliaID) int {
 	return numberBuckets - 1
 }
 
-func (t *RoutingTable) getBuckets() []*bucket {
-	return t.buckets[:]
+func (r *RoutingTable) getBuckets() []*bucket {
+	return r.buckets[:]
 }
