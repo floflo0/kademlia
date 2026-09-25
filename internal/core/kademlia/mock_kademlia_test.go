@@ -10,7 +10,7 @@ import (
 
 func TestMockKademlia_Run_NilFunction(t *testing.T) {
 	mockKademlia := &kademlia.MockKademlia{}
-	err := mockKademlia.Run()
+	err := mockKademlia.Run(nil)
 	if err != nil {
 		t.Fatalf("Run() returned unexpected error: %v", err)
 	}
@@ -19,12 +19,12 @@ func TestMockKademlia_Run_NilFunction(t *testing.T) {
 func TestMockKademlia_Run_CallsFunction(t *testing.T) {
 	called := false
 	mockKademlia := &kademlia.MockKademlia{
-		RunFunction: func() error {
+		RunFunction: func(firstContact *entities.Address) error {
 			called = true
 			return nil
 		},
 	}
-	err := mockKademlia.Run()
+	err := mockKademlia.Run(nil)
 	if err != nil {
 		t.Fatalf("Run() returned unexpected error: %v", err)
 	}
@@ -37,12 +37,12 @@ func TestMockKademlia_Run_ReturnsError(t *testing.T) {
 	called := false
 	expectedError := errors.New("test error")
 	mockKademlia := &kademlia.MockKademlia{
-		RunFunction: func() error {
+		RunFunction: func(firstContact *entities.Address) error {
 			called = true
 			return expectedError
 		},
 	}
-	err := mockKademlia.Run()
+	err := mockKademlia.Run(nil)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("Run() err = %v; want %v", err, expectedError)
 	}

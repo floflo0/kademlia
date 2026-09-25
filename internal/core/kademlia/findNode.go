@@ -49,7 +49,7 @@ func SendFindNode(requester_id *KademliaID, net ports.Network, recipient Contact
 		return nil, errSend
 	}
 
-	recv, errRcv := connection.Receive(500) //For the moment random value
+	recv, errRcv := connection.Receive(500) //For the moment random value for timeout
 	if errRcv != nil {
 		return nil, errRcv
 	}
