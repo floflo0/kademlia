@@ -1,9 +1,7 @@
 package kademlia
 
 import (
-	"crypto/sha256"
 	"errors"
-	"fmt"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
@@ -26,7 +24,7 @@ const timeout = 1000 // ms
 type Kademlia interface {
 	Run(firstContact *entities.Address) error
 	Ping(address entities.Address) (time.Duration, error)
-	GetBuckets() []*bucket
+	GetBuckets() []*Bucket
 	GetStoredKeys() []string
 }
 
@@ -50,15 +48,9 @@ func NewKademlia(me Contact, net ports.Network) *kademlia {
 	}
 }
 
-func AddressToID(address entities.Address) *KademliaID {
-	hash := sha256.Sum256([]byte(address.IP + fmt.Sprint(address.Port)))
-	id := (*KademliaID)(&hash)
-	return id
-}
-
 func (k *kademlia) Join(knownContact *entities.Address) {
 	// Already has a NodeId cause we made it mandatory to create a NewKademlia
-	id := AddressToID(*knownContact)
+	id := NewKademliaIDFomAddress(*knownContact)
 	slog.Info("ID finded with IP|port combination", "id", id, "k.me.ID", k.me.ID)
 	slog.Debug("New Kademlia ID generated from Address", "id", id)
 	k.RoutingTable.AddContact(NewContact(
@@ -425,7 +417,7 @@ func (k *kademlia) Ping(address entities.Address) (time.Duration, error) {
 	return elapsedTime, nil
 }
 
-func (k *kademlia) GetBuckets() []*bucket {
+func (k *kademlia) GetBuckets() []*Bucket {
 	return k.RoutingTable.getBuckets()
 }
 

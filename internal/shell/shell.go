@@ -6,6 +6,9 @@ import (
 	"kademlia/internal/core/kademlia"
 	"kademlia/internal/logging"
 	"kademlia/internal/shell/commands"
+	"kademlia/internal/shell/commands/exit"
+	"kademlia/internal/shell/commands/ping"
+	"kademlia/internal/shell/commands/show"
 	"log/slog"
 	"os"
 	"strings"
@@ -20,9 +23,9 @@ type Shell struct {
 func NewShell(kademlia kademlia.Kademlia) *Shell {
 	return &Shell{
 		commands: map[string]commands.Command{
-			"exit": commands.NewExitCommand(),
-			"ping": commands.NewPingCommand(kademlia),
-			"show": commands.NewShowCommand(kademlia),
+			"exit": exit.NewExitCommand(),
+			"ping": ping.NewPingCommand(kademlia),
+			"show": show.NewShowCommand(kademlia, os.Stdout),
 		},
 	}
 }

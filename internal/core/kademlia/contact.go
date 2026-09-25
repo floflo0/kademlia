@@ -19,6 +19,10 @@ func NewContact(id *KademliaID, address entities.Address) Contact {
 	return Contact{id, address, nil}
 }
 
+func NewContactFromAddress(address entities.Address) Contact {
+	return NewContact(NewKademliaIDFomAddress(address), address)
+}
+
 // CalcDistance calculates the distance to the target and
 // fills the contacts distance field
 func (contact *Contact) CalcDistance(target *KademliaID) {

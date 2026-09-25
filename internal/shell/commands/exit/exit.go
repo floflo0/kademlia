@@ -1,6 +1,7 @@
-package commands
+package exit
 
 import (
+	"kademlia/internal/shell/commands"
 	"log/slog"
 	"os"
 
@@ -9,7 +10,7 @@ import (
 
 type exitCommand struct{}
 
-func NewExitCommand() Command {
+func NewExitCommand() commands.Command {
 	return &exitCommand{}
 }
 
@@ -30,8 +31,8 @@ func (c *exitCommand) Execute(args []string) error {
 	return command.Execute()
 }
 
-func (c *exitCommand) GetCompletions() []Completion {
-	return getCompletions(c.buildCommand())
+func (c *exitCommand) GetCompletions() []commands.Completion {
+	return commands.GetCompletions(c.buildCommand())
 }
 
 func run(cmd *cobra.Command, args []string) {
