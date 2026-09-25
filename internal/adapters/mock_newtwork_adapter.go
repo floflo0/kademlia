@@ -109,7 +109,7 @@ func (c *mockListenConnection) SendTo(address entities.Address, payload []byte) 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c.closed {
-		return ErrClosedNetworkConnection
+		return ports.ErrClosedNetworkConnection
 	}
 	return c.network.send(c.address, address, payload)
 }
@@ -119,11 +119,11 @@ func (c *mockListenConnection) Receive() ([]byte, *entities.Address, error) {
 	closed := c.closed
 	c.mu.RUnlock()
 	if closed {
-		return nil, nil, ErrClosedNetworkConnection
+		return nil, nil, ports.ErrClosedNetworkConnection
 	}
 	message, ok := <-c.messagesChannel
 	if !ok {
-		return nil, nil, ErrConnectionClosed
+		return nil, nil, ports.ErrClosedNetworkConnection
 	}
 	return message.payload, &message.from, nil
 }
@@ -133,7 +133,7 @@ func (c *mockListenConnection) Close() error {
 	defer c.mu.Unlock()
 
 	if c.closed {
-		return ErrClosedNetworkConnection
+		return ports.ErrClosedNetworkConnection
 	}
 	c.closed = true
 
@@ -148,7 +148,7 @@ func (c *mockDialConnection) Send(payload []byte) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c.closed {
-		return ErrClosedNetworkConnection
+		return ports.ErrClosedNetworkConnection
 	}
 	return c.network.send(c.address, c.destinationAddress, payload)
 }
@@ -158,11 +158,11 @@ func (c *mockDialConnection) Receive(timeoutMiliseconds uint32) ([]byte, error) 
 	closed := c.closed
 	c.mu.RUnlock()
 	if closed {
-		return nil, ErrClosedNetworkConnection
+		return nil, ports.ErrClosedNetworkConnection
 	}
 	message, ok := <-c.messagesChannel
 	if !ok {
-		return nil, ErrConnectionClosed
+		return nil, ports.ErrClosedNetworkConnection
 	}
 	if message.from != c.destinationAddress {
 		panic("invalid source address")
@@ -174,7 +174,7 @@ func (c *mockDialConnection) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closed {
-		return ErrClosedNetworkConnection
+		return ports.ErrClosedNetworkConnection
 	}
 	c.closed = true
 

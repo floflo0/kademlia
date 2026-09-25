@@ -18,23 +18,23 @@ func main() {
 		network := adapters.NewUDPNetworkAdapter()
 
 		kademlia := kademlia.NewKademlia(
-			kademlia.NewContact(
-				kademlia.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000001"),
-				entities.Address{
-					IP:   config.Host,
-					Port: config.Port,
-				},
-			),
+			kademlia.NewContactFromAddress(entities.Address{
+				IP:   config.Host,
+				Port: config.Port,
+			}),
 			network,
 		)
 
 		go func() {
-			err := kademlia.Run(nil)
-			slog.Error("Kademlia run failed", "err", err)
+			shell := shell.NewShell(kademlia)
+			err := shell.Run()
+			if err != nil {
+				slog.Error("Failed to run the shell", "err", err)
+				return
+			}
 		}()
 
-		shell := shell.NewShell(kademlia)
-		return shell.Run()
+		return kademlia.Run(nil)
 	})
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

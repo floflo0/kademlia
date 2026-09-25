@@ -5,37 +5,46 @@ import (
 	"time"
 )
 
-type MockKademlia struct {
-	RunFunction           func(firstContact *entities.Address) error
-	PingFunction          func(address entities.Address) (time.Duration, error)
-	GetBucketsFunction    func() []*Bucket
-	GetStoredKeysFunction func() []string
+type mockKademlia struct {
+	runFunction           func(firstContact *entities.Address) error
+	pingFunction          func(address entities.Address) (time.Duration, error)
+	getBucketsFunction    func() []*Bucket
+	getStoredKeysFunction func() []string
+	quitFunction          func() error
 }
 
-func (k *MockKademlia) Run(firstContact *entities.Address) error {
-	if k.RunFunction != nil {
-		return k.RunFunction(firstContact)
+func NewMockKademlia(
+	runFunction func(firstContact *entities.Address) error,
+	pingFunction func(address entities.Address) (time.Duration, error),
+	getBucketsFunction func() []*Bucket,
+	getStoredKeysFunction func() []string,
+	quitFunction func() error,
+) Kademlia {
+	return &mockKademlia{
+		runFunction:           runFunction,
+		pingFunction:          pingFunction,
+		getBucketsFunction:    getBucketsFunction,
+		getStoredKeysFunction: getStoredKeysFunction,
+		quitFunction:          quitFunction,
 	}
-	return nil
 }
 
-func (k *MockKademlia) Ping(address entities.Address) (time.Duration, error) {
-	if k.PingFunction != nil {
-		return k.PingFunction(address)
-	}
-	return 0, nil
+func (k *mockKademlia) Run(firstContact *entities.Address) error {
+	return k.runFunction(firstContact)
 }
 
-func (k *MockKademlia) GetBuckets() []*Bucket {
-	if k.GetBucketsFunction != nil {
-		return k.GetBucketsFunction()
-	}
-	return []*Bucket{}
+func (k *mockKademlia) Ping(address entities.Address) (time.Duration, error) {
+	return k.pingFunction(address)
 }
 
-func (k *MockKademlia) GetStoredKeys() []string {
-	if k.GetStoredKeysFunction != nil {
-		return k.GetStoredKeysFunction()
-	}
-	return []string{}
+func (k *mockKademlia) GetBuckets() []*Bucket {
+	return k.getBucketsFunction()
+}
+
+func (k *mockKademlia) GetStoredKeys() []string {
+	return k.getStoredKeysFunction()
+}
+
+func (k *mockKademlia) Quit() error {
+	return k.quitFunction()
 }

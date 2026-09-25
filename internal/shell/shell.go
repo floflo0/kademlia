@@ -14,19 +14,22 @@ import (
 	"strings"
 
 	"github.com/chzyer/readline"
+	"golang.org/x/term"
 )
 
 type Shell struct {
 	commands map[string]commands.Command
+	kademlia kademlia.Kademlia
 }
 
 func NewShell(kademlia kademlia.Kademlia) *Shell {
 	return &Shell{
 		commands: map[string]commands.Command{
-			"exit": exit.NewExitCommand(),
+			"exit": exit.NewExitCommand(kademlia),
 			"ping": ping.NewPingCommand(kademlia),
 			"show": show.NewShowCommand(kademlia, os.Stdout),
 		},
+		kademlia: kademlia,
 	}
 }
 
@@ -55,8 +58,12 @@ func (s *Shell) completer() *readline.PrefixCompleter {
 }
 
 func (s *Shell) Run() error {
-	slog.Debug("Start shell")
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		slog.Debug("Stdout is not a tty")
+		return nil
+	}
 
+	slog.Debug("Start shell")
 	lineReader, err := readline.NewEx(&readline.Config{
 		Prompt:       "[kademlia] >>> ",
 		AutoComplete: s.completer(),
@@ -72,6 +79,10 @@ func (s *Shell) Run() error {
 		line, err := lineReader.Readline()
 		if err != nil {
 			if err == io.EOF {
+				err := s.kademlia.Quit()
+				if err != nil {
+					return err
+				}
 				break
 			}
 			if err == readline.ErrInterrupt {

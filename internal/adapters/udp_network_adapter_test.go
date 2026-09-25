@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
+	"kademlia/internal/core/ports"
 	"net"
 	"testing"
 	"time"
@@ -214,7 +215,7 @@ func TestUDPNetworkAdapter_Listen_SendTo_AfterClose(t *testing.T) {
 	address2 := entities.Address{IP: "127.0.0.1", Port: 20013}
 	payload := []byte("hello")
 	err = connection.SendTo(address2, payload)
-	expectedError := net.ErrClosed
+	expectedError := ports.ErrClosedNetworkConnection
 	if !errors.Is(err, expectedError) {
 		t.Fatalf(
 			"SendTo(%v, %v) err = %v; want %v",
@@ -240,7 +241,7 @@ func TestUDPNetworkAdapter_Listen_Receive_AfterClose(t *testing.T) {
 	}
 
 	_, _, err = connection.Receive()
-	expectedError := net.ErrClosed
+	expectedError := ports.ErrClosedNetworkConnection
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("Receive() err = %v; want %v", err, expectedError)
 	}
@@ -273,7 +274,7 @@ func TestUDPNetworkAdapter_Listen_Receive_ConnectionClosed(t *testing.T) {
 
 	select {
 	case err = <-receiveErr:
-		expectedError := net.ErrClosed
+		expectedError := ports.ErrClosedNetworkConnection
 		if !errors.Is(err, expectedError) {
 			t.Fatalf("Receive() err = %v; want %v", err, expectedError)
 		}
@@ -310,7 +311,7 @@ func TestUDPNetworkAdapter_Listen_Close_AlreadyClosed(t *testing.T) {
 	}
 
 	err = connection.Close()
-	expectedError := net.ErrClosed
+	expectedError := ports.ErrClosedNetworkConnection
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("Close() err = %v; want %v", err, expectedError)
 	}
@@ -442,7 +443,7 @@ func TestUDPNetworkAdapter_Dial_Send_AfterClose(t *testing.T) {
 
 	payload := []byte("hello")
 	err = connection.Send(payload)
-	expectedError := net.ErrClosed
+	expectedError := ports.ErrClosedNetworkConnection
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("Send(%q) err = %v; want %v", payload, err, expectedError)
 	}
@@ -463,7 +464,7 @@ func TestUDPNetworkAdapter_Dial_Receive_AfterClose(t *testing.T) {
 
 	timeout := uint32(0)
 	_, err = connection.Receive(timeout)
-	expectedError := net.ErrClosed
+	expectedError := ports.ErrClosedNetworkConnection
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("Receive(%v) err = %v; want %v", timeout, err, expectedError)
 	}
@@ -533,7 +534,7 @@ func TestUDPNetworkAdapter_Dial_Close_AlreadyClosed(t *testing.T) {
 	}
 
 	err = connection.Close()
-	expectedError := net.ErrClosed
+	expectedError := ports.ErrClosedNetworkConnection
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("Close() err = %v; want %v", err, expectedError)
 	}
