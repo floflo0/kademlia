@@ -1,7 +1,9 @@
 package kademlia
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
@@ -22,7 +24,7 @@ const b = 1
 const timeout = 1000 // ms
 
 type Kademlia interface {
-	Run() error
+	Run(firstContact *entities.Address) error
 	Ping(address entities.Address) (time.Duration, error)
 	GetBuckets() []*bucket
 	GetStoredKeys() []string
@@ -33,6 +35,7 @@ type kademlia struct {
 	network      ports.Network
 	dataStore    *DataStore
 	Connection   ports.ListenConnection
+	firstContact *entities.Address
 	me           Contact
 	mux          sync.RWMutex
 }
@@ -47,7 +50,26 @@ func NewKademlia(me Contact, net ports.Network) *kademlia {
 	}
 }
 
-func (k *kademlia) Run() error {
+func AddressToID(address entities.Address) *KademliaID {
+	hash := sha256.Sum256([]byte(address.IP + fmt.Sprint(address.Port)))
+	id := (*KademliaID)(&hash)
+	return id
+}
+
+func (k *kademlia) Join(knownContact *entities.Address) {
+	// Already has a NodeId cause we made it mandatory to create a NewKademlia
+	id := AddressToID(*knownContact)
+	slog.Info("ID finded with IP|port combination", "id", id, "k.me.ID", k.me.ID)
+	slog.Debug("New Kademlia ID generated from Address", "id", id)
+	k.RoutingTable.AddContact(NewContact(
+		id,
+		*knownContact,
+	))
+	meId := k.me.ID
+	k.LookupContact(meId)
+}
+
+func (k *kademlia) Run(firstContact *entities.Address) error {
 	connection, err := k.network.Listen(k.me.Address)
 	if err != nil {
 		return err
@@ -62,11 +84,18 @@ func (k *kademlia) Run() error {
 	}
 	slog.Info("Server started", "ip", ip, "port", k.me.Address.Port)
 
+	if firstContact != nil {
+		slog.Info("Joining the Kademlia network")
+		k.Join(firstContact)
+	} else {
+		slog.Info("No known contact given to join the network")
+	}
+
 	for {
 		payload, address, err := connection.Receive()
 		if err != nil {
 			slog.Error("todo: message", "err", err)
-			if err == adapters.ErrConnectionClosed {
+			if err == adapters.ErrConnectionClosed || err == adapters.ErrClosedNetworkConnection {
 				break
 			} else {
 				continue
@@ -215,19 +244,18 @@ func (k *kademlia) handlePing(
 }
 
 func ParalelFindNode(req_id *KademliaID, kNet ports.Network, contact Contact, target *KademliaID, ans chan RPCResponse, remove chan Contact, wg *sync.WaitGroup) error {
+	defer wg.Done()
 	ansFindNode, err := SendFindNode(req_id, kNet, contact, target)
 	if err != nil {
 		if errors.Is(err, syscall.ECONNREFUSED) {
 			remove <- contact
 		} else {
-			wg.Done()
 			return err
 		}
 	} else {
 		slog.Debug("Finded Nodes", "ansFindNode", ansFindNode)
 		ans <- *ansFindNode
 	}
-	wg.Done()
 	return nil
 }
 
@@ -257,20 +285,36 @@ func (k *kademlia) LookupContact(target *KademliaID) (*ContactCandidates, error)
 			slog.Debug("Counter", "nodeCounter", nodeCounter, "candidates", candidates.Len())
 			contact := candidates.GetContact(nodeCounter)
 			if slices.Contains(alreadyContacted, contact) == false {
+				alreadyContacted = append(alreadyContacted, contact)
 				k.mux.RLock()
 				req_id := k.me.ID
 				me_net := k.network
 				k.mux.RUnlock()
 				wg.Add(1)
 				go ParalelFindNode(req_id, me_net, contact, target, ans, remove, &wg)
-				alreadyContacted = append(alreadyContacted, contact)
 			}
 		}
 
 		wg.Wait()
+		var removed []Contact
 		for range len(remove) {
 			to_remove := <-remove
 			k.RoutingTable.RemoveContact(to_remove)
+			removed = append(removed, to_remove)
+		}
+
+		for i := range len(removed) {
+			for j := range len(candidates.contacts) {
+				if removed[i] == candidates.contacts[j] {
+					candidates.contacts = append(candidates.contacts[:j], candidates.contacts[j+1:]...)
+				}
+			}
+		}
+
+		// For race condition, as we have removed all the node that didn't answered
+		// we only have the nodes that responded so we have to update the routing table
+		for i := range len(candidates.contacts) {
+			k.UpdateRoutingTable(*candidates.contacts[i].ID, candidates.contacts[i].Address)
 		}
 
 		var new_candidates []Contact
@@ -330,6 +374,8 @@ func (k *kademlia) LookupContact(target *KademliaID) (*ContactCandidates, error)
 			}
 		}
 	}
+	slog.Info("Stopping the Lookup Loop", "!noNewClosest", !noNewClosest, "probed != k_const", probed != k_const)
+	slog.Info("State of bucket", "k.RoutingTable.FindClosestContacts(k.me.ID, 10)", k.RoutingTable.FindClosestContacts(k.me.ID, 10))
 
 	return &candidates, nil
 }

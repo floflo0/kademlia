@@ -29,7 +29,7 @@ func main() {
 		)
 
 		go func() {
-			err := kademlia.Run()
+			err := kademlia.Run(nil)
 			slog.Error("Kademlia run failed", "err", err)
 		}()
 
