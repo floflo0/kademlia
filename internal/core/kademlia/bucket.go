@@ -93,15 +93,16 @@ func (b *bucket) Len() int {
 	b.mux.RLock()
 	defer b.mux.RUnlock()
 	return b.list.Len()
+}
 
 func (b *bucket) GetContacts() []Contact {
 	contacts := make([]Contact, b.list.Len())
 	i := 0
-  b.mux.RLock()
+	b.mux.RLock()
 	for e := b.list.Front(); e != nil; e = e.Next() {
 		contacts[i] = e.Value.(Contact)
 		i++
 	}
-  b.mux.RUnlock()
+	b.mux.RUnlock()
 	return contacts
 }

@@ -45,7 +45,7 @@ func NewKademlia(me Contact, net ports.Network, firstContact *entities.Address) 
 	return &kademlia{
 		RoutingTable: NewRoutingTable(me),
 		network:      net,
-		DataStore:    make(map[string][]byte),
+		dataStore:    NewDataStore(),
 		firstContact: firstContact,
 		me:           me,
 	}

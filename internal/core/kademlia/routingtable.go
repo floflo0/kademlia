@@ -2,7 +2,6 @@ package kademlia
 
 import "sync"
 
-const bucketSize = 20
 const numberBuckets = IDLength * 8
 
 // RoutingTable definition
