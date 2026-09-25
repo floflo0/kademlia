@@ -64,11 +64,16 @@ func (k *kademlia) Join(knownContact *entities.Address) {
 		id,
 		*knownContact,
 	))
-	k.LookupContact(k.me.ID)
+	k.mux.Lock()
+	meId := k.me.ID
+	k.mux.Unlock()
+	k.LookupContact(meId)
 }
 
 func (k *kademlia) Run() error {
+	k.mux.RLock()
 	connection, err := k.network.Listen(k.me.Address)
+	k.mux.RUnlock()
 	if err != nil {
 		return err
 	}
@@ -82,9 +87,12 @@ func (k *kademlia) Run() error {
 	}
 	slog.Info("Server started", "ip", ip, "port", k.me.Address.Port)
 
-	if k.firstContact != nil {
+	k.mux.RLock()
+	firstContact := k.firstContact
+	k.mux.RUnlock()
+	if firstContact != nil {
 		slog.Info("Joining the Kademlia network")
-		k.Join(k.firstContact)
+		k.Join(firstContact)
 	} else {
 		slog.Info("No known contact given to join the network")
 	}
@@ -242,19 +250,18 @@ func (k *kademlia) handlePing(
 }
 
 func ParalelFindNode(req_id *KademliaID, kNet ports.Network, contact Contact, target *KademliaID, ans chan RPCResponse, remove chan Contact, wg *sync.WaitGroup) error {
+	defer wg.Done()
 	ansFindNode, err := SendFindNode(req_id, kNet, contact, target)
 	if err != nil {
 		if errors.Is(err, syscall.ECONNREFUSED) {
 			remove <- contact
 		} else {
-			wg.Done()
 			return err
 		}
 	} else {
 		slog.Debug("Finded Nodes", "ansFindNode", ansFindNode)
 		ans <- *ansFindNode
 	}
-	wg.Done()
 	return nil
 }
 
@@ -284,13 +291,13 @@ func (k *kademlia) LookupContact(target *KademliaID) (*ContactCandidates, error)
 			slog.Debug("Counter", "nodeCounter", nodeCounter, "candidates", candidates.Len())
 			contact := candidates.GetContact(nodeCounter)
 			if slices.Contains(alreadyContacted, contact) == false {
+				alreadyContacted = append(alreadyContacted, contact)
 				k.mux.RLock()
 				req_id := k.me.ID
 				me_net := k.network
 				k.mux.RUnlock()
 				wg.Add(1)
 				go ParalelFindNode(req_id, me_net, contact, target, ans, remove, &wg)
-				alreadyContacted = append(alreadyContacted, contact)
 			}
 		}
 

@@ -40,14 +40,6 @@ func TestJoinProcedure(t *testing.T) {
 	node3.RoutingTable.AddContact(node1.me)
 	node3.RoutingTable.AddContact(node2.me)
 
-	go node01.Run()
-	go node02.Run()
-	go node0.Run()
-	go node1.Run()
-	go node2.Run()
-	go node3.Run()
-	go node4.Run()
-
 	expectedRoutingTable := NewRoutingTable(node4.me)
 	expectedRoutingTable.AddContact(node1.me)
 	expectedRoutingTable.AddContact(node3.me)
@@ -57,11 +49,26 @@ func TestJoinProcedure(t *testing.T) {
 
 	slog.Info("First contact", "node4.firstContact", node4.firstContact)
 
-	for len(node4.RoutingTable.FindClosestContacts(node4.me.ID, 3)) < 3 {
-		continue
+	go node01.Run()
+	go node02.Run()
+	go node0.Run()
+	go node1.Run()
+	go node2.Run()
+	go node3.Run()
+	go node4.Run()
+
+	node4.mux.RLock()
+	cond := len(node4.RoutingTable.FindClosestContacts(node4.me.ID, 3)) < 3
+	node4.mux.RUnlock()
+	for cond {
+		node4.mux.Lock()
+		cond = len(node4.RoutingTable.FindClosestContacts(node4.me.ID, 3)) < 3
+		node4.mux.Unlock()
 	}
 
+	node4.mux.RLock()
 	testedRoutingTable := node4.RoutingTable.FindClosestContacts(node4.me.ID, 3)
+	node4.mux.RUnlock()
 	slog.Info("tested table", "testedRoutingTable", testedRoutingTable)
 
 	for i := range len(expectedClosest) {

@@ -1,11 +1,14 @@
 package kademlia
 
+import "sync"
+
 const bucketSize = 20
 
 // RoutingTable definition
 // keeps a refrence contact of me and an array of buckets
 type RoutingTable struct {
 	me      Contact
+	mux     sync.RWMutex
 	buckets [IDLength * 8]*bucket
 }
 
@@ -20,34 +23,44 @@ func NewRoutingTable(me Contact) *RoutingTable {
 }
 
 // AddContact add a new contact to the correct Bucket
-func (routingTable *RoutingTable) AddContact(contact Contact) {
-	bucketIndex := routingTable.getBucketIndex(contact.ID)
-	bucket := routingTable.buckets[bucketIndex]
+func (r *RoutingTable) AddContact(contact Contact) {
+	bucketIndex := r.getBucketIndex(contact.ID)
+	r.mux.RLock()
+	bucket := r.buckets[bucketIndex]
+	r.mux.RUnlock()
 	bucket.AddContact(contact)
 }
 
 // RemoveContact remove a contact from his bucket
-func (routingTable *RoutingTable) RemoveContact(contact Contact) {
-	bucketIndex := routingTable.getBucketIndex(contact.ID)
-	bucket := routingTable.buckets[bucketIndex]
+func (r *RoutingTable) RemoveContact(contact Contact) {
+	bucketIndex := r.getBucketIndex(contact.ID)
+	r.mux.RLock()
+	bucket := r.buckets[bucketIndex]
+	r.mux.RUnlock()
 	bucket.RemoveContact(contact)
 }
 
 // FindClosestContacts finds the count closest Contacts to the target in the RoutingTable
-func (routingTable *RoutingTable) FindClosestContacts(target *KademliaID, count int) []Contact {
+func (r *RoutingTable) FindClosestContacts(target *KademliaID, count int) []Contact {
 	var candidates ContactCandidates
-	bucketIndex := routingTable.getBucketIndex(target)
-	bucket := routingTable.buckets[bucketIndex]
+	bucketIndex := r.getBucketIndex(target)
+	r.mux.RLock()
+	bucket := r.buckets[bucketIndex]
+	r.mux.RUnlock()
 
 	candidates.Append(bucket.GetContactAndCalcDistance(target))
 
 	for i := 1; (bucketIndex-i >= 0 || bucketIndex+i < IDLength*8) && candidates.Len() < count; i++ {
 		if bucketIndex-i >= 0 {
-			bucket = routingTable.buckets[bucketIndex-i]
+			r.mux.RLock()
+			bucket = r.buckets[bucketIndex-i]
+			r.mux.RUnlock()
 			candidates.Append(bucket.GetContactAndCalcDistance(target))
 		}
 		if bucketIndex+i < IDLength*8 {
-			bucket = routingTable.buckets[bucketIndex+i]
+			r.mux.RLock()
+			bucket = r.buckets[bucketIndex+i]
+			r.mux.RUnlock()
 			candidates.Append(bucket.GetContactAndCalcDistance(target))
 		}
 	}
@@ -62,8 +75,11 @@ func (routingTable *RoutingTable) FindClosestContacts(target *KademliaID, count 
 }
 
 // getBucketIndex get the correct Bucket index for the KademliaID
-func (routingTable *RoutingTable) getBucketIndex(id *KademliaID) int {
-	distance := id.CalcDistance(routingTable.me.ID)
+func (r *RoutingTable) getBucketIndex(id *KademliaID) int {
+	r.mux.RLock()
+	meId := r.me.ID
+	r.mux.RUnlock()
+	distance := id.CalcDistance(meId)
 	for i := 0; i < IDLength; i++ {
 		for j := 0; j < 8; j++ {
 			if (distance[i]>>uint8(7-j))&0x1 != 0 {
