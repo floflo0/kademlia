@@ -4,6 +4,7 @@ import (
 	"errors"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
+	"kademlia/internal/core/ports"
 	"testing"
 	"time"
 )
@@ -210,13 +211,14 @@ func TestMockNetworkAdapter_Listen_SendTo_AfterClose(t *testing.T) {
 	}
 	payload := []byte("hello")
 	err = connection.SendTo(address2, payload)
-	if !errors.Is(err, adapters.ErrClosedNetworkConnection) {
+	expectedError := ports.ErrClosedNetworkConnection
+	if !errors.Is(err, expectedError) {
 		t.Fatalf(
 			"SendTo(%v, %v) err = %v; want %v",
 			address2,
 			payload,
 			err,
-			adapters.ErrClosedNetworkConnection,
+			expectedError,
 		)
 	}
 }
@@ -247,7 +249,7 @@ func TestMockNetworkAdapter_Listen_SendTo_QueueFull(t *testing.T) {
 	}
 
 	payload := []byte("hello")
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		err = connection.SendTo(destinationAddress, payload)
 		if err != nil {
 			t.Fatalf(
@@ -289,12 +291,9 @@ func TestMockNetworkAdapter_Listen_Receive_AfterClose(t *testing.T) {
 	}
 
 	_, _, err = connection.Receive()
-	if !errors.Is(err, adapters.ErrClosedNetworkConnection) {
-		t.Fatalf(
-			"Receive() err = %v; want %v",
-			err,
-			adapters.ErrClosedNetworkConnection,
-		)
+	expectedError := ports.ErrClosedNetworkConnection
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("Receive() err = %v; want %v", err, expectedError)
 	}
 }
 
@@ -329,12 +328,9 @@ func TestMockNetworkAdapter_Listen_Receive_ConnectionClosed(t *testing.T) {
 
 	select {
 	case err = <-receiveErr:
-		if !errors.Is(err, adapters.ErrConnectionClosed) {
-			t.Fatalf(
-				"Receive() err = %v; want %v",
-				err,
-				adapters.ErrConnectionClosed,
-			)
+		expectedError := ports.ErrClosedNetworkConnection
+		if !errors.Is(err, expectedError) {
+			t.Fatalf("Receive() err = %v; want %v", err, expectedError)
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("Receive() did not return after connection was closed")
@@ -377,12 +373,9 @@ func TestMockNetworkAdapter_Listen_Close_AlreadyClosed(t *testing.T) {
 	}
 
 	err = connection.Close()
-	if !errors.Is(err, adapters.ErrClosedNetworkConnection) {
-		t.Fatalf(
-			"Close()err = %v; want %v",
-			err,
-			adapters.ErrClosedNetworkConnection,
-		)
+	expectedError := ports.ErrClosedNetworkConnection
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("Close()err = %v; want %v", err, expectedError)
 	}
 }
 
@@ -527,13 +520,9 @@ func TestMockNetworkAdapter_Dial_Send_AfterClose(t *testing.T) {
 
 	payload := []byte("hello")
 	err = connection.Send(payload)
-	if !errors.Is(err, adapters.ErrClosedNetworkConnection) {
-		t.Fatalf(
-			"Send(%v) err = %v; want %v",
-			payload,
-			err,
-			adapters.ErrClosedNetworkConnection,
-		)
+	expectedError := ports.ErrClosedNetworkConnection
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("Send(%v) err = %v; want %v", payload, err, expectedError)
 	}
 }
 
@@ -556,13 +545,9 @@ func TestMockNetworkAdapter_Dial_Receive_AfterClose(t *testing.T) {
 
 	timeout := uint32(0)
 	_, err = connection.Receive(timeout)
-	if !errors.Is(err, adapters.ErrClosedNetworkConnection) {
-		t.Fatalf(
-			"Receive(%v) err = %v; want %v",
-			timeout,
-			err,
-			adapters.ErrClosedNetworkConnection,
-		)
+	expectedError := ports.ErrClosedNetworkConnection
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("Receive(%v) err = %v; want %v", timeout, err, expectedError)
 	}
 }
 
@@ -598,12 +583,13 @@ func TestMockNetworkAdapter_Dial_Receive_ConnectionClosed(t *testing.T) {
 
 	select {
 	case err = <-receiveErr:
-		if !errors.Is(err, adapters.ErrConnectionClosed) {
+		expectedError := ports.ErrClosedNetworkConnection
+		if !errors.Is(err, expectedError) {
 			t.Fatalf(
 				"Receive(%v) err = %v; want %v",
 				timeout,
 				err,
-				adapters.ErrConnectionClosed,
+				expectedError,
 			)
 		}
 
@@ -651,11 +637,8 @@ func TestMockNetworkAdapter_Dial_Close_AlreadyClosed(t *testing.T) {
 	}
 
 	err = connection.Close()
-	if !errors.Is(err, adapters.ErrClosedNetworkConnection) {
-		t.Fatalf(
-			"Close() err = %v; want %v",
-			err,
-			adapters.ErrClosedNetworkConnection,
-		)
+	expectedError := ports.ErrClosedNetworkConnection
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("Close() err = %v; want %v", err, expectedError)
 	}
 }

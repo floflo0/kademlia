@@ -1,6 +1,9 @@
 package ports
 
-import "kademlia/internal/core/entities"
+import (
+	"errors"
+	"kademlia/internal/core/entities"
+)
 
 type Network interface {
 	Listen(address entities.Address) (ListenConnection, error)
@@ -19,3 +22,7 @@ type DialConnection interface {
 	Receive(timeoutMiliseconds uint32) ([]byte, error)
 	Close() error
 }
+
+var (
+	ErrClosedNetworkConnection = errors.New("use of closed network connection")
+)

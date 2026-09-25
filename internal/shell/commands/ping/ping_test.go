@@ -17,22 +17,25 @@ func newMockKademlia(
 	t *testing.T,
 	pingFunction func(address entities.Address) (time.Duration, error),
 ) kademlia.Kademlia {
-	mockKademlia := &kademlia.MockKademlia{
-		RunFunction: func(firstContact *entities.Address) error {
+	return kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
 			t.Fatal("Run should not be called")
 			return nil
 		},
-		PingFunction: pingFunction,
-		GetBucketsFunction: func() []*kademlia.Bucket {
+		pingFunction,
+		func() []*kademlia.Bucket {
 			t.Fatal("GetBucketsFunction should not be called")
 			return []*kademlia.Bucket{}
 		},
-		GetStoredKeysFunction: func() []string {
+		func() []string {
 			t.Fatal("GetStoredKeysFunction should not be called")
 			return []string{}
 		},
-	}
-	return mockKademlia
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+	)
 }
 
 func TestNewPingCommand(t *testing.T) {

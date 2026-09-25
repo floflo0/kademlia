@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"errors"
 	"fmt"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
@@ -8,7 +9,7 @@ import (
 	"time"
 )
 
-type UdpNetworkAdapter struct{}
+type UDPNetworkAdapter struct{}
 
 type udpListenConnection struct {
 	connection *net.UDPConn
@@ -20,12 +21,12 @@ type udpDialConnection struct {
 
 const maxMessageSize = 4096
 
-func NewUDPNetworkAdapter() *UdpNetworkAdapter {
-	return &UdpNetworkAdapter{}
+func NewUDPNetworkAdapter() *UDPNetworkAdapter {
+	return &UDPNetworkAdapter{}
 }
 
-func (*UdpNetworkAdapter) Listen(address entities.Address) (ports.ListenConnection, error) {
-	addr, err := addressToUdpAdrr(address)
+func (*UDPNetworkAdapter) Listen(address entities.Address) (ports.ListenConnection, error) {
+	addr, err := addressToUDPAdrr(address)
 	if err != nil {
 		return nil, err
 	}
@@ -39,8 +40,8 @@ func (*UdpNetworkAdapter) Listen(address entities.Address) (ports.ListenConnecti
 	return connection, nil
 }
 
-func (*UdpNetworkAdapter) Dial(address entities.Address) (ports.DialConnection, error) {
-	addr, err := addressToUdpAdrr(address)
+func (*UDPNetworkAdapter) Dial(address entities.Address) (ports.DialConnection, error) {
+	addr, err := addressToUDPAdrr(address)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +74,14 @@ func (c *udpListenConnection) GetIP() (string, error) {
 }
 
 func (c *udpListenConnection) SendTo(address entities.Address, payload []byte) error {
-	addr, err := addressToUdpAdrr(address)
+	addr, err := addressToUDPAdrr(address)
 	if err != nil {
 		return err
 	}
 	_, err = c.connection.WriteToUDP(payload, addr)
+	if errors.Is(err, net.ErrClosed) {
+		return ports.ErrClosedNetworkConnection
+	}
 	return err
 }
 
@@ -85,6 +89,9 @@ func (c *udpListenConnection) Receive() ([]byte, *entities.Address, error) {
 	buffer := make([]byte, maxMessageSize)
 	n, addr, err := c.connection.ReadFromUDP(buffer)
 	if err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			return nil, nil, ports.ErrClosedNetworkConnection
+		}
 		return nil, nil, err
 	}
 	address := udpAddrtoAddress(addr)
@@ -93,11 +100,18 @@ func (c *udpListenConnection) Receive() ([]byte, *entities.Address, error) {
 }
 
 func (c *udpListenConnection) Close() error {
-	return c.connection.Close()
+	err := c.connection.Close()
+	if errors.Is(err, net.ErrClosed) {
+		return ports.ErrClosedNetworkConnection
+	}
+	return err
 }
 
 func (c *udpDialConnection) Send(payload []byte) error {
 	_, err := c.connection.Write(payload)
+	if errors.Is(err, net.ErrClosed) {
+		return ports.ErrClosedNetworkConnection
+	}
 	return err
 }
 
@@ -106,20 +120,30 @@ func (c *udpDialConnection) Receive(timeoutMiliseconds uint32) ([]byte, error) {
 	deadline := time.Now().Add(time.Duration(timeoutMiliseconds) * time.Millisecond)
 	err := c.connection.SetReadDeadline(deadline)
 	if err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			return nil, ports.ErrClosedNetworkConnection
+		}
 		return nil, err
 	}
 	n, err := c.connection.Read(buffer)
 	if err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			return nil, ports.ErrClosedNetworkConnection
+		}
 		return nil, err
 	}
 	return buffer[:n], nil
 }
 
 func (c *udpDialConnection) Close() error {
-	return c.connection.Close()
+	err := c.connection.Close()
+	if errors.Is(err, net.ErrClosed) {
+		return ports.ErrClosedNetworkConnection
+	}
+	return err
 }
 
-func addressToUdpAdrr(address entities.Address) (*net.UDPAddr, error) {
+func addressToUDPAdrr(address entities.Address) (*net.UDPAddr, error) {
 	ip := net.ParseIP(address.IP)
 	if ip == nil {
 		return nil, fmt.Errorf("failed to parse IP address: %q", address.IP)

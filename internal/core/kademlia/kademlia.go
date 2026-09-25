@@ -2,7 +2,6 @@ package kademlia
 
 import (
 	"errors"
-	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"kademlia/proto/generated"
@@ -26,13 +25,14 @@ type Kademlia interface {
 	Ping(address entities.Address) (time.Duration, error)
 	GetBuckets() []*Bucket
 	GetStoredKeys() []string
+	Quit() error
 }
 
 type kademlia struct {
 	RoutingTable *RoutingTable
 	network      ports.Network
 	dataStore    *DataStore
-	Connection   ports.ListenConnection
+	connection   ports.ListenConnection
 	firstContact *entities.Address
 	me           Contact
 	mux          sync.RWMutex
@@ -57,8 +57,7 @@ func (k *kademlia) Join(knownContact *entities.Address) {
 		id,
 		*knownContact,
 	))
-	meId := k.me.ID
-	k.LookupContact(meId)
+	k.LookupContact(k.me.ID)
 }
 
 func (k *kademlia) Run(firstContact *entities.Address) error {
@@ -66,10 +65,10 @@ func (k *kademlia) Run(firstContact *entities.Address) error {
 	if err != nil {
 		return err
 	}
-	k.mux.Lock()
-	k.Connection = connection
-	k.mux.Unlock()
 	defer connection.Close()
+	k.mux.Lock()
+	k.connection = connection
+	k.mux.Unlock()
 	ip, err := connection.GetIP()
 	if err != nil {
 		return err
@@ -86,12 +85,11 @@ func (k *kademlia) Run(firstContact *entities.Address) error {
 	for {
 		payload, address, err := connection.Receive()
 		if err != nil {
-			slog.Error("todo: message", "err", err)
-			if err == adapters.ErrConnectionClosed || err == adapters.ErrClosedNetworkConnection {
+			if errors.Is(err, ports.ErrClosedNetworkConnection) {
 				break
-			} else {
-				continue
 			}
+			slog.Error("failed to receive packet", "err", err)
+			continue
 		}
 		k.handleRequest(connection, payload, *address)
 	}
@@ -99,15 +97,16 @@ func (k *kademlia) Run(firstContact *entities.Address) error {
 }
 
 func (k *kademlia) Quit() error {
-	k.mux.RLock()
-	if k.Connection == nil {
-		return errors.New("No connection")
+	k.mux.Lock()
+	defer k.mux.Unlock()
+	if k.connection == nil {
+		return errors.New("can't quit Kademlia: connection is nil")
 	}
-	err := k.Connection.Close()
-	k.mux.RUnlock()
+	err := k.connection.Close()
 	if err != nil {
 		return err
 	}
+	k.connection = nil
 	return nil
 }
 
