@@ -1,10 +1,11 @@
-package commands
+package ping
 
 import (
 	"fmt"
 	"kademlia/config"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/shell/commands"
 	"log/slog"
 	"strconv"
 
@@ -15,7 +16,7 @@ type pingCommand struct {
 	kademlia kademlia.Kademlia
 }
 
-func NewPingCommand(kademlia kademlia.Kademlia) Command {
+func NewPingCommand(kademlia kademlia.Kademlia) commands.Command {
 	return &pingCommand{
 		kademlia: kademlia,
 	}
@@ -63,6 +64,6 @@ func (c *pingCommand) Execute(args []string) error {
 	return command.Execute()
 }
 
-func (c *pingCommand) GetCompletions() []Completion {
-	return getCompletions(c.buildCommand())
+func (c *pingCommand) GetCompletions() []commands.Completion {
+	return commands.GetCompletions(c.buildCommand())
 }

@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func getCompletions(command *cobra.Command) []Completion {
+func GetCompletions(command *cobra.Command) []Completion {
 	command.InitDefaultHelpFlag()
 	items := make([]Completion, 0)
 	for _, sub := range command.Commands() {
@@ -14,7 +14,7 @@ func getCompletions(command *cobra.Command) []Completion {
 				items,
 				Completion{
 					Name:     sub.Name(),
-					Children: getCompletions(sub),
+					Children: GetCompletions(sub),
 				},
 			)
 		}

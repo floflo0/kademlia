@@ -8,14 +8,14 @@ import (
 
 const bucketSize = 8
 
-type bucket struct {
+type Bucket struct {
 	list *list.List
 	mux  sync.RWMutex
 }
 
-// newBucket returns a new instance of a bucket.
-func newBucket() *bucket {
-	return &bucket{
+// NewBucket returns a new instance of a bucket.
+func NewBucket() *Bucket {
+	return &Bucket{
 		list: list.New(),
 	}
 }
@@ -23,7 +23,7 @@ func newBucket() *bucket {
 // AddContact adds the Contact to the front of the bucket
 // or moves it to the front of the bucket if it already existed
 // If the bucket is Full returns the pointer to the contact
-func (b *bucket) AddContact(contact Contact) *Contact {
+func (b *Bucket) AddContact(contact Contact) *Contact {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 	var element *list.Element
@@ -51,7 +51,7 @@ func (b *bucket) AddContact(contact Contact) *Contact {
 }
 
 // RemoveContact remove the Contact from the bucket
-func (b *bucket) RemoveContact(contact Contact) {
+func (b *Bucket) RemoveContact(contact Contact) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 	var element *list.Element
@@ -71,7 +71,7 @@ func (b *bucket) RemoveContact(contact Contact) {
 
 // GetContactAndCalcDistance returns an array of Contacts where
 // the distance has already been calculated
-func (b *bucket) GetContactAndCalcDistance(target *KademliaID) []Contact {
+func (b *Bucket) GetContactAndCalcDistance(target *KademliaID) []Contact {
 	var contacts []Contact
 	b.mux.RLock()
 	for elt := b.list.Front(); elt != nil; elt = elt.Next() {
@@ -84,20 +84,20 @@ func (b *bucket) GetContactAndCalcDistance(target *KademliaID) []Contact {
 }
 
 // Len return the size of the bucket
-func (b *bucket) Len() int {
+func (b *Bucket) Len() int {
 	b.mux.RLock()
 	defer b.mux.RUnlock()
 	return b.list.Len()
 }
 
-func (b *bucket) GetContacts() []Contact {
+func (b *Bucket) GetContacts() []Contact {
 	b.mux.RLock()
+	defer b.mux.RUnlock()
 	contacts := make([]Contact, b.list.Len())
 	i := 0
 	for e := b.list.Front(); e != nil; e = e.Next() {
 		contacts[i] = e.Value.(Contact)
 		i++
 	}
-	b.mux.RUnlock()
 	return contacts
 }

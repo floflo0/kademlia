@@ -9,7 +9,7 @@ const numberBuckets = IDLength * 8
 type RoutingTable struct {
 	me      Contact
 	mux     sync.RWMutex
-	buckets [numberBuckets]*bucket
+	buckets [numberBuckets]*Bucket
 }
 
 // NewRoutingTable returns a new instance of a RoutingTable.
@@ -18,7 +18,7 @@ func NewRoutingTable(me Contact) *RoutingTable {
 		me: me,
 	}
 	for i := range numberBuckets {
-		routingTable.buckets[i] = newBucket()
+		routingTable.buckets[i] = NewBucket()
 	}
 	return routingTable
 }
@@ -79,6 +79,6 @@ func (r *RoutingTable) getBucketIndex(id *KademliaID) int {
 	return numberBuckets - 1
 }
 
-func (r *RoutingTable) getBuckets() []*bucket {
+func (r *RoutingTable) getBuckets() []*Bucket {
 	return r.buckets[:]
 }

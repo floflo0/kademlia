@@ -1,8 +1,10 @@
-package commands
+package show
 
 import (
 	"fmt"
+	"io"
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/shell/commands"
 	"log/slog"
 
 	"github.com/spf13/cobra"
@@ -10,11 +12,13 @@ import (
 
 type showCommand struct {
 	kademlia kademlia.Kademlia
+	out      io.Writer
 }
 
-func NewShowCommand(kademlia kademlia.Kademlia) Command {
+func NewShowCommand(kademlia kademlia.Kademlia, out io.Writer) commands.Command {
 	return &showCommand{
 		kademlia: kademlia,
+		out:      out,
 	}
 }
 
@@ -28,11 +32,18 @@ func (c *showCommand) buildCommand() *cobra.Command {
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 0 {
+				panic("unreachable")
+			}
+			return fmt.Errorf("missing subcommand")
+		},
 	}
 	command.AddCommand(
-		showRoutingTableCommand(c.kademlia),
-		showDataStoreCommand(c.kademlia),
+		showRoutingTableCommand(c.kademlia, c.out),
+		showDataStoreCommand(c.kademlia, c.out),
 	)
+	command.SetOut(c.out)
 	return command
 }
 
@@ -42,27 +53,31 @@ func (c *showCommand) Execute(args []string) error {
 	return command.Execute()
 }
 
-func (c *showCommand) GetCompletions() []Completion {
-	return getCompletions(c.buildCommand())
+func (c *showCommand) GetCompletions() []commands.Completion {
+	return commands.GetCompletions(c.buildCommand())
 }
 
-func showRoutingTableCommand(kademlia kademlia.Kademlia) *cobra.Command {
-	command := &cobra.Command{
-		Use:   "rt [-h]",
-		Short: "Show the routing table",
-		Args:  cobra.NoArgs,
+func showRoutingTableCommand(
+	kademlia kademlia.Kademlia,
+	out io.Writer,
+) *cobra.Command {
+	return &cobra.Command{
+		Use:                   "rt [-h]",
+		Short:                 "Show the routing table",
+		Args:                  cobra.NoArgs,
+		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, args []string) error {
 			slog.Debug("Running show rt command")
-
 			routingTableEmpty := true
 			for i, bucket := range kademlia.GetBuckets() {
 				if bucket.Len() == 0 {
 					continue
 				}
 				routingTableEmpty = false
-				fmt.Printf("Bucket %d:\n", i)
+				fmt.Fprintf(out, "Bucket %d:\n", i)
 				for j, contact := range bucket.GetContacts() {
-					fmt.Printf(
+					fmt.Fprintf(
+						out,
 						"    - %2d %s %s\n",
 						j,
 						contact.ID.ShortString(),
@@ -71,27 +86,29 @@ func showRoutingTableCommand(kademlia kademlia.Kademlia) *cobra.Command {
 				}
 			}
 			if routingTableEmpty {
-				fmt.Println("Routing table is empty.")
+				fmt.Fprintln(out, "Routing table is empty.")
 				return nil
 			}
 			return nil
 		},
 	}
-	return command
 }
 
-func showDataStoreCommand(kademlia kademlia.Kademlia) *cobra.Command {
-	command := &cobra.Command{
-		Use:   "ds [-h]",
-		Short: "Show the data store keys",
-		Args:  cobra.NoArgs,
+func showDataStoreCommand(
+	kademlia kademlia.Kademlia,
+	out io.Writer,
+) *cobra.Command {
+	return &cobra.Command{
+		Use:                   "ds [-h]",
+		Short:                 "Show the data store keys",
+		Args:                  cobra.NoArgs,
+		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, args []string) error {
 			slog.Debug("Running show ds command")
 			for _, key := range kademlia.GetStoredKeys() {
-				fmt.Println(key)
+				fmt.Fprintln(out, key)
 			}
 			return nil
 		},
 	}
-	return command
 }
