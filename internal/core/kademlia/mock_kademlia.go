@@ -14,7 +14,7 @@ type MockKademlia struct {
 
 func (k *MockKademlia) Run(firstContact *entities.Address) error {
 	if k.RunFunction != nil {
-		return k.RunFunction(nil)
+		return k.RunFunction(firstContact)
 	}
 	return nil
 }
