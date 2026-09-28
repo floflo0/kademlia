@@ -4,11 +4,19 @@ option go_package = "proto/generated";
 
 import "ping.proto";
 import "find_node.proto";
+import "find_value.proto";
+import "store.proto";
+import "find_node_response.proto";
+import "find_value_response.proto";
 
 message Message {
   bytes kademlia_id = 1;
   oneof payload {
     Ping ping = 2;
     FindNode find_node = 3;
+    FindValue find_value = 4;
+    FindNodeResponse find_node_reponse = 5;
+    FindValueResponse find_value_response = 6;
+    Store store = 7;
   };
 }

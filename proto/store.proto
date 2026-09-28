@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "proto/generated";
+
+message Store {
+  bytes key = 1;
+  bytes data = 2;
+  int32 data_len = 3;
+  bytes requester_id = 4;
+  bytes recipient_id = 5;
+}
