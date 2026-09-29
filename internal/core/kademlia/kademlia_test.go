@@ -206,3 +206,37 @@ func TestLookupValueFunc(t *testing.T) {
 		t.Errorf("Expected value to be %v, got %v", expectedValue, *value)
 	}
 }
+
+func TestStoreFunc(t *testing.T) {
+	net := adapters.NewMockNetworkAdapter()
+	node1 := createTestNode(8000, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000"), net)
+	node2 := createTestNode(8001, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028"), net)
+	node3 := createTestNode(8002, NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f00"), net)
+	node4 := createTestNode(8003, NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f30"), net)
+	node5 := createTestNode(8004, NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f3c"), net)
+
+	node1.RoutingTable.AddContact(node2.me)
+	node1.RoutingTable.AddContact(node3.me)
+	node2.RoutingTable.AddContact(node1.me)
+	node3.RoutingTable.AddContact(node4.me)
+	node3.RoutingTable.AddContact(node5.me)
+	valueTested := "Hello world"
+	hash := sha256.Sum256([]byte(valueTested))
+	key := hex.EncodeToString(hash[:])
+
+	go node1.Run(nil)
+	go node2.Run(nil)
+	go node3.Run(nil)
+	go node4.Run(nil)
+	go node5.Run(nil)
+
+	node1.Store(key, valueTested)
+
+	require.Eventually(t, func() bool {
+		found, err := node5.dataStore.Get(key)
+		found1, err := node4.dataStore.Get(key)
+		found2, err := node3.dataStore.Get(key)
+		found3, err := node2.dataStore.Get(key)
+		return err == nil && found != "" && found1 != "" && found2 != "" && found3 != ""
+	}, 100*time.Second, 1000*time.Millisecond)
+}
