@@ -3,6 +3,7 @@ package kademlia
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"kademlia/internal/core/entities"
 	"math/rand"
@@ -15,15 +16,21 @@ const IDLength = 32 // 256 bit / 8 bits/byte = 32 bytes
 type KademliaID [IDLength]byte
 
 // NewKademliaID returns a new instance of a KademliaID based on the string input
-func NewKademliaID(data string) *KademliaID {
-	decoded, _ := hex.DecodeString(data)
+func NewKademliaID(data string) (*KademliaID, error) {
+	decoded, err := hex.DecodeString(data)
+	if err != nil {
+		return nil, err
+	}
+	if len(decoded) < IDLength {
+		return nil, errors.New("ID too short")
+	}
 
 	newKademliaID := KademliaID{}
-	for i := 0; i < IDLength; i++ {
+	for i := range IDLength {
 		newKademliaID[i] = decoded[i]
 	}
 
-	return &newKademliaID
+	return &newKademliaID, nil
 }
 
 // NewRandomKademliaID returns a new instance of a random KademliaID,

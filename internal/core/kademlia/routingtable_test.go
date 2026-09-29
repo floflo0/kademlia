@@ -8,23 +8,27 @@ import (
 
 // TestRoutingTableOrder verifies that FindClosestContacts returns contacts ordered by XOR distance
 func TestRoutingTableOrder(t *testing.T) {
-	myID := NewKademliaID("FFFFFFFF00000000000000000000000000000000000000000000000000000000")
+	myID, _ := NewKademliaID("FFFFFFFF00000000000000000000000000000000000000000000000000000000")
 	me := NewContact(myID, entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	})
 	rt := NewRoutingTable(me)
 
-	c1 := NewContact(NewKademliaID("FFFFFFFF00000000000000000000000000000000000000000000000000000000"), entities.Address{IP: "127.0.0.1", Port: 8000})
-	c2 := NewContact(NewKademliaID("1111111100000000000000000000000000000000000000000000000000000000"), entities.Address{IP: "127.0.0.1", Port: 8001})
-	c3 := NewContact(NewKademliaID("2111111400000000000000000000000000000000000000000000000000000000"), entities.Address{IP: "127.0.0.1", Port: 8002})
+	id1, _ := NewKademliaID("FFFFFFFF00000000000000000000000000000000000000000000000000000000")
+	id2, _ := NewKademliaID("1111111100000000000000000000000000000000000000000000000000000000")
+	id3, _ := NewKademliaID("2111111400000000000000000000000000000000000000000000000000000000")
+
+	c1 := NewContact(id1, entities.Address{IP: "127.0.0.1", Port: 8000})
+	c2 := NewContact(id2, entities.Address{IP: "127.0.0.1", Port: 8001})
+	c3 := NewContact(id3, entities.Address{IP: "127.0.0.1", Port: 8002})
 
 	rt.AddContact(c1)
 	rt.AddContact(c2)
 	rt.AddContact(c3)
 
 	// Target ID identical to c3
-	targetID := NewKademliaID("2111111400000000000000000000000000000000000000000000000000000000")
+	targetID, _ := NewKademliaID("2111111400000000000000000000000000000000000000000000000000000000")
 	contacts := rt.FindClosestContacts(targetID, 20)
 
 	if len(contacts) != 3 {
@@ -57,18 +61,20 @@ func TestRoutingTableDuplicateContact(t *testing.T) {
 
 // TestBucketSizeLimit verifies that a bucket does not exceed bucketSize (20)
 func TestBucketSizeLimit(t *testing.T) {
-	me := NewContact(NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000"), entities.Address{IP: "127.0.0.1", Port: 8000})
+	id, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
+	me := NewContact(id, entities.Address{IP: "127.0.0.1", Port: 8000})
 	rt := NewRoutingTable(me)
 
 	// Add 25 contacts that fall into the same bucket range
 	for i := 0; i < 25; i++ {
 		// Generating IDs with similar prefix so they land in nearby/same buckets
 		idHex := fmt.Sprintf("80000000000000000000000000000000000000000000000000000000000000%02x", i)
-		contact := NewContact(NewKademliaID(idHex), entities.Address{IP: "127.0.0.1", Port: 8000 + i})
+		id, _ := NewKademliaID(idHex)
+		contact := NewContact(id, entities.Address{IP: "127.0.0.1", Port: 8000 + i})
 		rt.AddContact(contact)
 	}
 
-	target := NewKademliaID("8000000000000000000000000000000000000000000000000000000000000000")
+	target, _ := NewKademliaID("8000000000000000000000000000000000000000000000000000000000000000")
 	bucketIndex := rt.getBucketIndex(target)
 	bucketLen := rt.buckets[bucketIndex].Len()
 

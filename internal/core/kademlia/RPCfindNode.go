@@ -9,16 +9,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type RPCResponse struct {
-	double []Double
+type RPCResponseNode struct {
+	double []DoubleNode
 }
 
-type Double struct {
+type DoubleNode struct {
 	address entities.Address
 	id      *KademliaID
 }
 
-func SendFindNode(requester_id *KademliaID, net ports.Network, recipient Contact, target *KademliaID) (*RPCResponse, error) {
+func SendFindNode(requester_id *KademliaID, net ports.Network, recipient Contact, target *KademliaID) (*RPCResponseNode, error) {
 	slog.Debug("Sending find node", "recipient ID", recipient.ID)
 	connection, errDial := net.Dial(recipient.Address)
 	if errDial != nil {
@@ -54,21 +54,22 @@ func SendFindNode(requester_id *KademliaID, net ports.Network, recipient Contact
 		return nil, errRcv
 	}
 
-	msgRecv := &generated.FindNodeResponse{}
+	msgRecv := &generated.Message{}
 	err := proto.Unmarshal(recv, msgRecv)
 	if err != nil {
 		return nil, err
 	}
 
-	dataRecv := msgRecv.GetTriples()
-	var response RPCResponse
+	dataRecv := msgRecv.GetFindNodeReponse().GetTriples()
+	var response RPCResponseNode
 	for i := range len(dataRecv) {
-		response.double = append(response.double, Double{
+		id, _ := NewKademliaID(string(dataRecv[i].GetKademliaid()))
+		response.double = append(response.double, DoubleNode{
 			entities.Address{
 				IP:   dataRecv[i].GetAddress(),
 				Port: int(dataRecv[i].GetPort()),
 			},
-			NewKademliaID(string(dataRecv[i].GetKademliaid())),
+			id,
 		})
 	}
 

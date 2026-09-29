@@ -25,6 +25,10 @@ func TestNewMockKademlia(t *testing.T) {
 			t.Fatal("GetStoredKeysFunction should not be called")
 			return []string{}
 		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValueFunction should not be called")
+			return nil, nil, nil
+		},
 		func() error {
 			t.Fatal("Quit should not be called")
 			return nil
