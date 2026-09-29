@@ -34,7 +34,7 @@ func main() {
 			}
 		}()
 
-		return kademlia.Run(nil)
+		return kademlia.Run(config.KnownContact)
 	})
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

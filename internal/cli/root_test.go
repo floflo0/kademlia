@@ -5,6 +5,8 @@ import (
 	"errors"
 	"kademlia/config"
 	"kademlia/internal/cli"
+	"kademlia/internal/core/entities"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -46,16 +48,22 @@ func TestNewRootCommand_Execute_NoArgs(t *testing.T) {
 		func(appConfig cli.Config) error {
 			if appConfig.Host != config.DefaultHost {
 				t.Fatalf(
-					"unexpected host: got %q, want %q",
+					"Execute() Host = %q; want %q",
 					appConfig.Host,
 					config.DefaultHost,
 				)
 			}
 			if appConfig.Port != config.DefaultPort {
 				t.Fatalf(
-					"unexpected port: got %d, want %d",
+					"Execute() Port = %d; want %d",
 					appConfig.Port,
 					config.DefaultPort,
+				)
+			}
+			if appConfig.KnownContact != nil {
+				t.Fatalf(
+					"Execute() KnownContact = %v; want nil",
+					appConfig.KnownContact,
 				)
 			}
 			startCalled = true
@@ -209,5 +217,51 @@ func TestNewRootCommand_Execute_LongPortFlag(t *testing.T) {
 	}
 	if !startCalled {
 		t.Fatalf("Execute() hasn't called start function")
+	}
+}
+
+func TestNewRootCommand_Execute_KnownContactFlag(t *testing.T) {
+	startCalled := false
+	rootCommand, _, _ := mockRootCommand(
+		func(appConfig cli.Config) error {
+			expectedKnownContact := entities.Address{
+				IP:   "127.0.0.1",
+				Port: 8081,
+			}
+			if !reflect.DeepEqual(
+				appConfig.KnownContact,
+				&expectedKnownContact,
+			) {
+				t.Fatalf(
+					"Execute() KnownContact = %v; want %v",
+					appConfig.KnownContact,
+					expectedKnownContact,
+				)
+			}
+			startCalled = true
+			return nil
+		},
+		[]string{"--known-contact", "127.0.0.1:8081"},
+	)
+	err := rootCommand.Execute()
+	if err != nil {
+		t.Fatalf("Execute() returned unexpected error: %v", err)
+	}
+	if !startCalled {
+		t.Fatalf("Execute() hasn't called start function")
+	}
+}
+
+func TestNewRootCommand_Execute_KnownContactFlag_Error(t *testing.T) {
+	rootCommand, _, _ := mockRootCommand(
+		func(appConfig cli.Config) error {
+			t.Fatalf("Execute() called start function")
+			return nil
+		},
+		[]string{"--known-contact", "invalid-address"},
+	)
+	err := rootCommand.Execute()
+	if err == nil {
+		t.Fatalf("Execute() err = nil; want an error")
 	}
 }
