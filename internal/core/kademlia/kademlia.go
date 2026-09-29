@@ -26,6 +26,7 @@ var ErrNoContact = errors.New("No contact")
 type Kademlia interface {
 	Run(firstContact *entities.Address) error
 	Ping(address entities.Address) (time.Duration, error)
+	Put(data string) (*KademliaID, error)
 	GetBuckets() []*Bucket
 	GetStoredKeys() []string
 	GetValue(key string) (*string, *string, error)
@@ -660,18 +661,17 @@ func (k *kademlia) LookupValue(target *KademliaID) (*string, *Contact, *ContactC
 	return nil, nil, &candidates, nil
 }
 
-func (k *kademlia) Store(key string, data string) error {
-	id, err := NewKademliaID(key)
-	if err != nil {
-		return err
-	}
-	candidates, err := k.LookupContact(id)
+func (k *kademlia) Store(key *KademliaID, data string) error {
+	candidates, err := k.LookupContact(key)
 	if err != nil {
 		return err
 	}
 
 	for i := range len(candidates.contacts) {
-		SendStore(k.me.ID, k.network, candidates.contacts[i], key, data)
+		err := SendStore(k.me.ID, k.network, candidates.contacts[i], key.String(), data)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -720,6 +720,15 @@ func (k *kademlia) Ping(address entities.Address) (time.Duration, error) {
 	}
 
 	return elapsedTime, nil
+}
+
+func (k *kademlia) Put(data string) (*KademliaID, error) {
+	id := NewKademliaIDFomString(data)
+	err := k.Store(id, data)
+	if err != nil {
+		return nil, err
+	}
+	return id, nil
 }
 
 func (k *kademlia) GetBuckets() []*Bucket {
