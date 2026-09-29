@@ -7,6 +7,7 @@ import (
 	"kademlia/internal/logging"
 	"kademlia/internal/shell/commands"
 	"kademlia/internal/shell/commands/exit"
+	"kademlia/internal/shell/commands/get"
 	"kademlia/internal/shell/commands/ping"
 	"kademlia/internal/shell/commands/show"
 	"log/slog"
@@ -28,6 +29,7 @@ func NewShell(kademlia kademlia.Kademlia) *Shell {
 			"exit": exit.NewExitCommand(kademlia),
 			"ping": ping.NewPingCommand(kademlia),
 			"show": show.NewShowCommand(kademlia, os.Stdout),
+			"get":  get.NewGetCommand(kademlia, os.Stdout),
 		},
 		kademlia: kademlia,
 	}

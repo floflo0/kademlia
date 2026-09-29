@@ -28,6 +28,10 @@ func newMockKademlia(
 		},
 		getBucketsFunction,
 		getStoredKeysFunction,
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValueFunction should not be called")
+			return nil, nil, nil
+		},
 		func() error {
 			t.Fatal("Quit should not be called")
 			return nil
