@@ -25,7 +25,7 @@ func TestKademliaID_ShortString(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		id := kademlia.NewKademliaID(test.id)
+		id, _ := kademlia.NewKademliaID(test.id)
 		string := id.ShortString()
 		if string != test.expectedString {
 			t.Fatalf(

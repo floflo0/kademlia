@@ -63,12 +63,13 @@ func SendFindNode(requester_id *KademliaID, net ports.Network, recipient Contact
 	dataRecv := msgRecv.GetFindNodeReponse().GetTriples()
 	var response RPCResponseNode
 	for i := range len(dataRecv) {
+		id, _ := NewKademliaID(string(dataRecv[i].GetKademliaid()))
 		response.double = append(response.double, DoubleNode{
 			entities.Address{
 				IP:   dataRecv[i].GetAddress(),
 				Port: int(dataRecv[i].GetPort()),
 			},
-			NewKademliaID(string(dataRecv[i].GetKademliaid())),
+			id,
 		})
 	}
 

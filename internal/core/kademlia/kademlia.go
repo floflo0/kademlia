@@ -21,6 +21,7 @@ const b = 1
 const timeout = 1000 // ms
 
 var ErrDataLen = errors.New("Lenght of data does not correspond to Data lenght sent")
+var ErrNoContact = errors.New("No contact")
 
 type Kademlia interface {
 	Run(firstContact *entities.Address) error
@@ -527,6 +528,9 @@ func (k *kademlia) LookupValue(target *KademliaID) (*string, *Contact, *ContactC
 
 	candidates.Append(k.RoutingTable.FindClosestContacts(target, k_const))
 	candidates.Sort()
+	if len(candidates.contacts) == 0 {
+		return nil, nil, nil, ErrNoContact
+	}
 	closestNode := candidates.GetContact(0)
 	noNewClosest = false
 
@@ -657,7 +661,11 @@ func (k *kademlia) LookupValue(target *KademliaID) (*string, *Contact, *ContactC
 }
 
 func (k *kademlia) Store(key string, data string) error {
-	candidates, err := k.LookupContact(NewKademliaID(key))
+	id, err := NewKademliaID(key)
+	if err != nil {
+		return err
+	}
+	candidates, err := k.LookupContact(id)
 	if err != nil {
 		return err
 	}
@@ -723,7 +731,10 @@ func (k *kademlia) GetStoredKeys() []string {
 }
 
 func (k *kademlia) GetValue(key string) (*string, *string, error) {
-	target := NewKademliaID(key)
+	target, err := NewKademliaID(key)
+	if err != nil {
+		return nil, nil, err
+	}
 	value, contact, _, err := k.LookupValue(target)
 	if err != nil {
 		return nil, nil, err

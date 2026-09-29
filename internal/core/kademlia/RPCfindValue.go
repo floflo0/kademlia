@@ -76,12 +76,13 @@ func SendFindValue(requester_id *KademliaID, net ports.Network, recipient Contac
 	value := ""
 	dataRecv := msgRecv.GetFindValueResponse().GetTriples()
 	for i := range len(dataRecv) {
+		id, _ := NewKademliaID(string(dataRecv[i].GetKademliaid()))
 		doubleForResponse = append(doubleForResponse, DoubleValue{
 			address: entities.Address{
 				IP:   dataRecv[i].GetAddress(),
 				Port: int(dataRecv[i].GetPort()),
 			},
-			id: NewKademliaID(string(dataRecv[i].GetKademliaid())),
+			id: id,
 		})
 	}
 	response.double = &doubleForResponse
