@@ -130,7 +130,6 @@ func (k *kademlia) handleRequest(
 	message := generated.Message{}
 	if err := proto.Unmarshal(payload, &message); err != nil {
 		slog.Error("Error while unmarshaling request payload", "err", err)
-		slog.Info("Error")
 		return
 	}
 
@@ -217,7 +216,7 @@ func (k *kademlia) handleFindValue(
 	address entities.Address,
 ) {
 	slog.Info(
-		"Receive find node message",
+		"Receive find value message",
 		"requestTarget",
 		findValue.GetTargetId(),
 		"requestRequester",
@@ -228,8 +227,7 @@ func (k *kademlia) handleFindValue(
 		address,
 	)
 	target := (*KademliaID)(findValue.GetTargetId())
-	if slices.Contains(k.dataStore.Keys(), target.String()) {
-		value := k.dataStore.data[target.String()]
+	if value, err := k.dataStore.Get(target.String()); err == nil {
 		findValueResponse := generated.Message{
 			KademliaId: k.me.ID[:],
 			Payload: &generated.Message_FindValueResponse{
