@@ -1,11 +1,16 @@
 package kademlia
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"log/slog"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Helper function to create a dummy Kademlia node for testing
@@ -157,4 +162,47 @@ func TestLookupContactFunc(t *testing.T) {
 	node3.Quit()
 	node4.Quit()
 
+}
+
+func TestLookupValueFunc(t *testing.T) {
+	net := adapters.NewMockNetworkAdapter()
+	node1 := createTestNode(8000, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000"), net)
+	node2 := createTestNode(8001, NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028"), net)
+	node3 := createTestNode(8002, NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f00"), net)
+	node4 := createTestNode(8003, NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f30"), net)
+	node5 := createTestNode(8004, NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f3c"), net)
+
+	node1.RoutingTable.AddContact(node2.me)
+	node1.RoutingTable.AddContact(node3.me)
+	node2.RoutingTable.AddContact(node1.me)
+	node3.RoutingTable.AddContact(node4.me)
+	node3.RoutingTable.AddContact(node5.me)
+	valueTested := "Hello world"
+	hash := sha256.Sum256([]byte(valueTested))
+	key := hex.EncodeToString(hash[:])
+	node4.dataStore.Put(key, valueTested)
+
+	target := NewKademliaID(key)
+	go node1.Run(nil)
+	go node2.Run(nil)
+	go node3.Run(nil)
+	go node4.Run(nil)
+	go node5.Run(nil)
+
+	value, candidates, _ := node1.LookupValue(target)
+
+	expectedValue := valueTested
+
+	require.Eventually(t, func() bool {
+		found, err := node5.dataStore.Get(key)
+		return err == nil && found != ""
+	}, 100*time.Second, 1000*time.Millisecond)
+
+	if candidates != nil {
+		t.Errorf("Expected number of candidates to be %v, got %v", 0, len(candidates.contacts))
+	}
+
+	if *value != expectedValue {
+		t.Errorf("Expected value to be %v, got %v", expectedValue, *value)
+	}
 }

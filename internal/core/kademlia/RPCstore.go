@@ -23,7 +23,7 @@ func SendStore(requester_id *KademliaID, net ports.Network, recipient Contact, k
 		return ErrTooMuchData
 	}
 
-	storeMessage := generated.Message{
+	storeMessage := &generated.Message{
 		KademliaId: requester_id[:],
 		Payload: &generated.Message_Store{
 			Store: &generated.Store{
@@ -36,7 +36,7 @@ func SendStore(requester_id *KademliaID, net ports.Network, recipient Contact, k
 		},
 	}
 
-	out, errMarshal := proto.Marshal(&storeMessage)
+	out, errMarshal := proto.Marshal(storeMessage)
 	if errMarshal != nil {
 		slog.Debug("Marshal")
 		return errMarshal
@@ -47,6 +47,7 @@ func SendStore(requester_id *KademliaID, net ports.Network, recipient Contact, k
 		slog.Debug("Send")
 		return errSend
 	}
+	slog.Info("Store sent to", "recipient", recipient)
 
 	return nil
 }

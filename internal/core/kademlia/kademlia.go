@@ -118,20 +118,7 @@ func (k *kademlia) UpdateRoutingTable(
 	id KademliaID,
 	address entities.Address,
 ) {
-	bucketIndex := k.RoutingTable.getBucketIndex(&id)
-	bucket := k.RoutingTable.buckets[bucketIndex]
-	contact := bucket.AddContact(NewContact(&id, address))
-	if contact != nil {
-		oldestContact := bucket.list.Back().Value.(Contact)
-		_, err := k.Ping(oldestContact.Address)
-		if err != nil {
-			slog.Info("Old contact not responding")
-			bucket.RemoveContact(oldestContact)
-			bucket.AddContact(*contact)
-		} else {
-			slog.Info("Contact not added")
-		}
-	}
+	k.RoutingTable.AddContact(NewContact(&id, address))
 }
 
 func (k *kademlia) handleRequest(
@@ -142,6 +129,7 @@ func (k *kademlia) handleRequest(
 	message := generated.Message{}
 	if err := proto.Unmarshal(payload, &message); err != nil {
 		slog.Error("Error while unmarshaling request payload", "err", err)
+		slog.Info("Error")
 		return
 	}
 
@@ -336,9 +324,7 @@ func (k *kademlia) handleStore(
 		return ErrDataLen
 	}
 
-	k.dataStore.mu.Lock()
 	k.dataStore.Put(string(key), string(data))
-	k.dataStore.mu.Unlock()
 
 	return nil
 }
@@ -593,7 +579,7 @@ func (k *kademlia) LookupValue(target *KademliaID) (*string, *ContactCandidates,
 
 		for range len(ans) {
 			candidatesAns := <-ans
-			if *candidatesAns.value != "" {
+			if candidatesAns.value != nil && *candidatesAns.value != "" {
 				valueFound = true
 				answer = candidatesAns.value
 				candidatesWithAnswer = append(candidatesWithAnswer, *candidatesAns.sender)
@@ -644,6 +630,7 @@ func (k *kademlia) LookupValue(target *KademliaID) (*string, *ContactCandidates,
 		if candidates.Len() > k_const {
 			candidates.PopShortList(k_const)
 		}
+		slog.Info("List of candidates in order", "candidates.contacts", candidates.contacts)
 
 		probed = 0
 		for i := range len(candidates.contacts) {
@@ -719,4 +706,17 @@ func (k *kademlia) GetBuckets() []*Bucket {
 
 func (k *kademlia) GetStoredKeys() []string {
 	return k.dataStore.Keys()
+}
+
+func (k *kademlia) Store(key string, data string) error {
+	candidates, err := k.LookupContact(NewKademliaID(key))
+	if err != nil {
+		return err
+	}
+
+	for i := range len(candidates.contacts) {
+		SendStore(k.me.ID, k.network, candidates.contacts[i], key, data)
+	}
+
+	return nil
 }
