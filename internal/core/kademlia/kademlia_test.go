@@ -189,7 +189,7 @@ func TestLookupValueFunc(t *testing.T) {
 	go node4.Run(nil)
 	go node5.Run(nil)
 
-	value, candidates, _ := node1.LookupValue(target)
+	value, _, candidates, _ := node1.LookupValue(target)
 
 	expectedValue := valueTested
 

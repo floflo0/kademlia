@@ -27,6 +27,7 @@ type Kademlia interface {
 	Ping(address entities.Address) (time.Duration, error)
 	GetBuckets() []*Bucket
 	GetStoredKeys() []string
+	GetValue(key string) (*string, *string, error)
 	Quit() error
 }
 
@@ -510,7 +511,7 @@ func (k *kademlia) LookupContact(target *KademliaID) (*ContactCandidates, error)
 }
 
 // LookupContact does an iterative search of the closest k nodes to a target ID
-func (k *kademlia) LookupValue(target *KademliaID) (*string, *ContactCandidates, error) {
+func (k *kademlia) LookupValue(target *KademliaID) (*string, *Contact, *ContactCandidates, error) {
 	// 1. Obtain the initial closest contacts from the local routing table
 	var candidates ContactCandidates
 	var noNewClosest bool
@@ -523,7 +524,7 @@ func (k *kademlia) LookupValue(target *KademliaID) (*string, *ContactCandidates,
 
 	if slices.Contains(k.dataStore.Keys(), target.String()) {
 		value := k.dataStore.data[target.String()]
-		return &value, nil, nil
+		return &value, &k.me, nil, nil
 	}
 
 	candidates.Append(k.RoutingTable.FindClosestContacts(target, k_const))
@@ -641,18 +642,33 @@ func (k *kademlia) LookupValue(target *KademliaID) (*string, *ContactCandidates,
 	}
 	slog.Info("Stopping the Lookup Loop", "!noNewClosest", !noNewClosest, "probed != k_const", probed != k_const, "valueFound", valueFound)
 	slog.Info("State of bucket", "k.RoutingTable.FindClosestContacts(k.me.ID, 10)", k.RoutingTable.FindClosestContacts(k.me.ID, 10))
+	var contactWithAnswer Contact
 	if answer != nil {
 		for i := range len(candidates.contacts) {
 			if !slices.Contains(candidatesWithAnswer, *candidates.contacts[i].ID) {
 				SendStore(k.me.ID, k.network, candidates.contacts[i], target.String(), *answer)
 			} else {
+				contactWithAnswer = candidates.contacts[i]
 				break
 			}
 		}
-		return answer, nil, nil
+		return answer, &contactWithAnswer, nil, nil
 	}
 
-	return nil, &candidates, nil
+	return nil, nil, &candidates, nil
+}
+
+func (k *kademlia) Store(key string, data string) error {
+	candidates, err := k.LookupContact(NewKademliaID(key))
+	if err != nil {
+		return err
+	}
+
+	for i := range len(candidates.contacts) {
+		SendStore(k.me.ID, k.network, candidates.contacts[i], key, data)
+	}
+
+	return nil
 }
 
 func (k *kademlia) Ping(address entities.Address) (time.Duration, error) {
@@ -708,15 +724,16 @@ func (k *kademlia) GetStoredKeys() []string {
 	return k.dataStore.Keys()
 }
 
-func (k *kademlia) Store(key string, data string) error {
-	candidates, err := k.LookupContact(NewKademliaID(key))
+func (k *kademlia) GetValue(key string) (*string, *string, error) {
+	target := NewKademliaID(key)
+	value, contact, _, err := k.LookupValue(target)
 	if err != nil {
-		return err
-	}
+		return nil, nil, err
 
-	for i := range len(candidates.contacts) {
-		SendStore(k.me.ID, k.network, candidates.contacts[i], key, data)
 	}
-
-	return nil
+	if value != nil {
+		contactID := contact.ID.String()
+		return value, &contactID, nil
+	}
+	return nil, nil, nil
 }
