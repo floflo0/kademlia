@@ -26,7 +26,7 @@ func NewKademliaID(data string) (*KademliaID, error) {
 	}
 
 	newKademliaID := KademliaID{}
-	for i := 0; i < IDLength; i++ {
+	for i := range IDLength {
 		newKademliaID[i] = decoded[i]
 	}
 

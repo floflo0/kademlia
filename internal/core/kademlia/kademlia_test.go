@@ -27,7 +27,7 @@ func TestJoinProcedure(t *testing.T) {
 	net := adapters.NewMockNetworkAdapter()
 	id01, _ := NewKademliaID("584f29d78cfc54f4d50d39206e6179aaf6a3ba94cf196cd46e982184dba7500e")
 	id02, _ := NewKademliaID("865a5e7a3dff6a43f9a6d5891408dc9b633a776374b78ca869e82b5915699788")
-	id0, _ := NewKademliaID("c2ca635f8aaa10cf452b46f8b76f87e808f16bc386d1dadffb0738c6013412560")
+	id0, _ := NewKademliaID("c2ca635f8aaa10cf452b46f8b76f87e808f16bc386d1dadffb0738c601341256")
 	id1, _ := NewKademliaID("82d3b0c2c9d99d3c3b4955a37847e263bea9804713457a0524c37ff460aa2387")
 	id2, _ := NewKademliaID("04d7d678f7da903f3fda66d0571820524d776048d100e5281398478f19800a18")
 	id3, _ := NewKademliaID("68cb53c968df317fba321af9ea0328edd371b64087528316e1eccdde48712a69")
@@ -144,6 +144,7 @@ func TestLookupContactFunc(t *testing.T) {
 	node1.RoutingTable.AddContact(node3.me)
 	node2.RoutingTable.AddContact(node1.me)
 	node3.RoutingTable.AddContact(node4.me)
+	node4.RoutingTable.AddContact(node3.me)
 
 	target, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000027")
 	go node1.Run(nil)
