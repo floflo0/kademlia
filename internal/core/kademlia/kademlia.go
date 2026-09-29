@@ -48,7 +48,7 @@ func NewKademlia(me Contact, net ports.Network) *kademlia {
 	}
 }
 
-func (k *kademlia) Join(knownContact *entities.Address) {
+func (k *kademlia) join(knownContact *entities.Address) error {
 	// Already has a NodeId cause we made it mandatory to create a NewKademlia
 	id := NewKademliaIDFomAddress(*knownContact)
 	slog.Info("ID finded with IP|port combination", "id", id, "k.me.ID", k.me.ID)
@@ -57,7 +57,8 @@ func (k *kademlia) Join(knownContact *entities.Address) {
 		id,
 		*knownContact,
 	))
-	k.LookupContact(k.me.ID)
+	_, err := k.LookupContact(k.me.ID)
+	return err
 }
 
 func (k *kademlia) Run(firstContact *entities.Address) error {
@@ -77,9 +78,10 @@ func (k *kademlia) Run(firstContact *entities.Address) error {
 
 	if firstContact != nil {
 		slog.Info("Joining the Kademlia network")
-		k.Join(firstContact)
-	} else {
-		slog.Info("No known contact given to join the network")
+		err := k.join(firstContact)
+		if err != nil {
+			return err
+		}
 	}
 
 	for {
