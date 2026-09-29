@@ -31,7 +31,7 @@ func (c *getCommand) buildCommand() *cobra.Command {
 		Example:               "get 083749...917e32 file.txt",
 		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, args []string) error {
-			slog.Debug("Running get command")
+			slog.Debug("Running get command", "args", args)
 			if len(args[0]) != 64 {
 				return errors.New("Bad length, must be 64")
 			}

@@ -43,9 +43,13 @@ func NewRandomKademliaID() *KademliaID {
 	return &newKademliaID
 }
 
-func NewKademliaIDFomAddress(address entities.Address) *KademliaID {
-	hash := sha256.Sum256([]byte(address.IP + fmt.Sprint(address.Port)))
+func NewKademliaIDFomString(value string) *KademliaID {
+	hash := sha256.Sum256([]byte(value))
 	return (*KademliaID)(&hash)
+}
+
+func NewKademliaIDFomAddress(address entities.Address) *KademliaID {
+	return NewKademliaIDFomString(address.IP + fmt.Sprint(address.Port))
 }
 
 // Less returns true if kademliaID < otherKademliaID (bitwise)

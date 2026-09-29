@@ -246,8 +246,7 @@ func TestStoreFunc(t *testing.T) {
 	node3.RoutingTable.AddContact(node4.me)
 	node3.RoutingTable.AddContact(node5.me)
 	valueTested := "Hello world"
-	hash := sha256.Sum256([]byte(valueTested))
-	key := hex.EncodeToString(hash[:])
+	key := NewKademliaIDFomString(valueTested)
 
 	go node1.Run(nil)
 	go node2.Run(nil)
@@ -258,10 +257,10 @@ func TestStoreFunc(t *testing.T) {
 	node1.Store(key, valueTested)
 
 	require.Eventually(t, func() bool {
-		found, err := node5.dataStore.Get(key)
-		found1, err := node4.dataStore.Get(key)
-		found2, err := node3.dataStore.Get(key)
-		found3, err := node2.dataStore.Get(key)
+		found, err := node5.dataStore.Get(key.String())
+		found1, err := node4.dataStore.Get(key.String())
+		found2, err := node3.dataStore.Get(key.String())
+		found3, err := node2.dataStore.Get(key.String())
 		return err == nil && found != "" && found1 != "" && found2 != "" && found3 != ""
 	}, 100*time.Second, 1000*time.Millisecond)
 }

@@ -23,6 +23,10 @@ func newMockKademlia(
 			return nil
 		},
 		pingFunction,
+		func(data string) (*kademlia.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
 		func() []*kademlia.Bucket {
 			t.Fatal("GetBucketsFunction should not be called")
 			return []*kademlia.Bucket{}

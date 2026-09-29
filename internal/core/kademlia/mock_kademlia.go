@@ -7,6 +7,7 @@ import (
 
 type mockKademlia struct {
 	runFunction           func(firstContact *entities.Address) error
+	putFunction           func(data string) (*KademliaID, error)
 	pingFunction          func(address entities.Address) (time.Duration, error)
 	getBucketsFunction    func() []*Bucket
 	getStoredKeysFunction func() []string
@@ -17,6 +18,7 @@ type mockKademlia struct {
 func NewMockKademlia(
 	runFunction func(firstContact *entities.Address) error,
 	pingFunction func(address entities.Address) (time.Duration, error),
+	putFunction func(data string) (*KademliaID, error),
 	getBucketsFunction func() []*Bucket,
 	getStoredKeysFunction func() []string,
 	getValueFunction func(key string) (*string, *string, error),
@@ -25,6 +27,7 @@ func NewMockKademlia(
 	return &mockKademlia{
 		runFunction:           runFunction,
 		pingFunction:          pingFunction,
+		putFunction:           putFunction,
 		getBucketsFunction:    getBucketsFunction,
 		getStoredKeysFunction: getStoredKeysFunction,
 		getValueFunction:      getValueFunction,
@@ -38,6 +41,10 @@ func (k *mockKademlia) Run(firstContact *entities.Address) error {
 
 func (k *mockKademlia) Ping(address entities.Address) (time.Duration, error) {
 	return k.pingFunction(address)
+}
+
+func (k *mockKademlia) Put(data string) (*KademliaID, error) {
+	return k.putFunction(data)
 }
 
 func (k *mockKademlia) GetBuckets() []*Bucket {
