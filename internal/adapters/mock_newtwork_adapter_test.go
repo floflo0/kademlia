@@ -5,19 +5,42 @@ import (
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func TestNewMockNetworkAdapter(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
-	if network == nil {
-		t.Fatal("NewMockNetworkAdapter() returned nil")
+	for _, packetLossPercentage := range []float32{0.0, 0.25, 0.5, 1.0} {
+		network := adapters.NewMockNetworkAdapter(packetLossPercentage)
+		if network == nil {
+			t.Fatalf(
+				"NewMockNetworkAdapter(%f) returned nil",
+				packetLossPercentage,
+			)
+		}
 	}
 }
 
+func TestNewMockNetworkAdapter_PacketLoss_Invalid(t *testing.T) {
+	assertNewMockNetworkAdapterPanics := func(packetLossPercentage float32) {
+		t.Helper()
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatalf(
+					"NewMockNetworkAdapter(%f) did not panic",
+					packetLossPercentage,
+				)
+			}
+		}()
+		adapters.NewMockNetworkAdapter(packetLossPercentage)
+	}
+	assertNewMockNetworkAdapterPanics(-0.1)
+	assertNewMockNetworkAdapterPanics(1.1)
+}
+
 func TestMockNetworkAdapter_Listen_Success(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -33,7 +56,7 @@ func TestMockNetworkAdapter_Listen_Success(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_DifferentAddresses(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address1 := entities.Address{
 		IP:   "127.0.0.1",
@@ -55,7 +78,7 @@ func TestMockNetworkAdapter_Listen_DifferentAddresses(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_ReuseAddress(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -78,7 +101,7 @@ func TestMockNetworkAdapter_Listen_ReuseAddress(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_AddressAlreadyInUse(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -101,7 +124,7 @@ func TestMockNetworkAdapter_Listen_AddressAlreadyInUse(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_GetIP_Success(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 	address := entities.Address{IP: "127.0.0.1", Port: 8000}
 	connection, err := network.Listen(address)
 	if err != nil {
@@ -118,7 +141,7 @@ func TestMockNetworkAdapter_Listen_GetIP_Success(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_SendTo_Receive_Success(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address1 := entities.Address{IP: "127.0.0.1", Port: 8000}
 	address2 := entities.Address{IP: "127.0.0.1", Port: 8001}
@@ -160,7 +183,7 @@ func TestMockNetworkAdapter_Listen_SendTo_Receive_Success(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_SendTo_DestinationNotFound(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address1 := entities.Address{
 		IP:   "127.0.0.1",
@@ -189,7 +212,7 @@ func TestMockNetworkAdapter_Listen_SendTo_DestinationNotFound(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_SendTo_AfterClose(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address1 := entities.Address{
 		IP:   "127.0.0.1",
@@ -224,7 +247,7 @@ func TestMockNetworkAdapter_Listen_SendTo_AfterClose(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_SendTo_QueueFull(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -249,7 +272,7 @@ func TestMockNetworkAdapter_Listen_SendTo_QueueFull(t *testing.T) {
 	}
 
 	payload := []byte("hello")
-	for range 10 {
+	for range 1000 {
 		err = connection.SendTo(destinationAddress, payload)
 		if err != nil {
 			t.Fatalf(
@@ -262,19 +285,20 @@ func TestMockNetworkAdapter_Listen_SendTo_QueueFull(t *testing.T) {
 	}
 
 	err = connection.SendTo(destinationAddress, payload)
-	if !errors.Is(err, adapters.ErrMessageQueueFull) {
+	expectedError := adapters.ErrMessageQueueFull
+	if !errors.Is(err, expectedError) {
 		t.Fatalf(
 			"SendTo(%v, %v) err = %v; want %v",
 			destinationAddress,
 			payload,
 			err,
-			adapters.ErrMessageQueueFull,
+			expectedError,
 		)
 	}
 }
 
 func TestMockNetworkAdapter_Listen_Receive_AfterClose(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -298,7 +322,7 @@ func TestMockNetworkAdapter_Listen_Receive_AfterClose(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_Receive_ConnectionClosed(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -338,7 +362,7 @@ func TestMockNetworkAdapter_Listen_Receive_ConnectionClosed(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_Close_Sucess(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -356,7 +380,7 @@ func TestMockNetworkAdapter_Listen_Close_Sucess(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Listen_Close_AlreadyClosed(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -380,7 +404,7 @@ func TestMockNetworkAdapter_Listen_Close_AlreadyClosed(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Dial_Success(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -396,7 +420,7 @@ func TestMockNetworkAdapter_Dial_Success(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Dial_SameAddress(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 	address := entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
@@ -413,7 +437,7 @@ func TestMockNetworkAdapter_Dial_SameAddress(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Dial_AddressAlreadyInUse(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address1 := entities.Address{
 		IP:   "127.0.0.1",
@@ -440,7 +464,7 @@ func TestMockNetworkAdapter_Dial_AddressAlreadyInUse(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Dial_Send_Receive_Success(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -480,12 +504,23 @@ func TestMockNetworkAdapter_Dial_Send_Receive_Success(t *testing.T) {
 			)
 			return
 		}
+		err = listenConnection.SendTo(*address, responsePlayload)
+		if err != nil {
+			t.Errorf(
+				"SendTo(%v, %q) returned unexpected error: %v",
+				*address,
+				string(responsePlayload),
+				err,
+			)
+			return
+		}
 	}()
 
 	err = dialConnection.Send(payload)
 	if err != nil {
 		t.Fatalf("Send(%q) returned unexpected error: %v", string(payload), err)
 	}
+
 	timeout := uint32(0)
 	received, err := dialConnection.Receive(timeout)
 	if err != nil {
@@ -499,10 +534,56 @@ func TestMockNetworkAdapter_Dial_Send_Receive_Success(t *testing.T) {
 			responsePlayload,
 		)
 	}
+
+	timeout = uint32(1000)
+	received, err = dialConnection.Receive(timeout)
+	if err != nil {
+		t.Fatalf("Receive(%v) returned unexpected error: %v", timeout, err)
+	}
+	if string(received) != string(responsePlayload) {
+		t.Fatalf(
+			"Receive(%v) payload = %q; want %q",
+			timeout,
+			received,
+			responsePlayload,
+		)
+	}
+}
+
+func TestMockNetworkAdapter_Dial_Send_QueueFull(t *testing.T) {
+	network := adapters.NewMockNetworkAdapter(0.0)
+
+	address := entities.Address{
+		IP:   "127.0.0.1",
+		Port: 8000,
+	}
+	_, err := network.Listen(address)
+	if err != nil {
+		t.Fatalf("Listen(%v) returned unexpected error: %v", address, err)
+	}
+
+	connection, err := network.Dial(address)
+	if err != nil {
+		t.Fatalf("Dial(%v) returned unexpected error: %v", address, err)
+	}
+
+	payload := []byte("hello")
+	for range 1000 {
+		err = connection.Send(payload)
+		if err != nil {
+			t.Fatalf("Send(%v) returned unexpected error: %v", payload, err)
+		}
+	}
+
+	err = connection.Send(payload)
+	expectedError := adapters.ErrMessageQueueFull
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("Send(%v) err = %v; want %v", payload, err, expectedError)
+	}
 }
 
 func TestMockNetworkAdapter_Dial_Send_AfterClose(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -526,8 +607,44 @@ func TestMockNetworkAdapter_Dial_Send_AfterClose(t *testing.T) {
 	}
 }
 
+func TestMockNetworkAdapter_Dial_Receive_Timeout(t *testing.T) {
+	network := adapters.NewMockNetworkAdapter(0.0)
+
+	address := entities.Address{
+		IP:   "127.0.0.1",
+		Port: 8000,
+	}
+	connection, err := network.Dial(address)
+	if err != nil {
+		t.Fatalf("Dial(%v) returned unexpected error: %v", address, err)
+	}
+	defer connection.Close()
+
+	timeout := uint32(10)
+	result := make(chan error, 1)
+	go func() {
+		_, err := connection.Receive(timeout)
+		result <- err
+	}()
+
+	select {
+	case err = <-result:
+		expectedError := ports.ErrTimeout
+		if !errors.Is(err, expectedError) {
+			t.Fatalf(
+				"Receive(%v) err = %v; want %v",
+				timeout,
+				err,
+				expectedError,
+			)
+		}
+	case <-time.After(20 * time.Millisecond):
+		t.Fatalf("Receive(%v) did not return", timeout)
+	}
+}
+
 func TestMockNetworkAdapter_Dial_Receive_AfterClose(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -552,7 +669,7 @@ func TestMockNetworkAdapter_Dial_Receive_AfterClose(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Dial_Receive_ConnectionClosed(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -601,8 +718,60 @@ func TestMockNetworkAdapter_Dial_Receive_ConnectionClosed(t *testing.T) {
 	}
 }
 
+func TestMockNetworkAdapter_Dial_Receive_ConnectionClosed_WithTimeout(
+	t *testing.T,
+) {
+	network := adapters.NewMockNetworkAdapter(0.0)
+
+	address := entities.Address{
+		IP:   "127.0.0.1",
+		Port: 8000,
+	}
+	connection, err := network.Dial(address)
+	if err != nil {
+		t.Fatalf("Dial(%v) returned unexpected error: %v", address, err)
+	}
+
+	timeoutMiliseconds := uint32(1000)
+	receiveStarted := make(chan struct{})
+	receiveErr := make(chan error)
+
+	go func() {
+		close(receiveStarted)
+		_, err := connection.Receive(timeoutMiliseconds)
+		receiveErr <- err
+	}()
+
+	<-receiveStarted
+	// Give time to Receive to start waiting for the channel.
+	time.Sleep(time.Millisecond)
+	err = connection.Close()
+	if err != nil {
+		t.Fatalf("Close() returned unexpected error: %v", err)
+	}
+
+	select {
+	case err = <-receiveErr:
+		expectedError := ports.ErrClosedNetworkConnection
+		if !errors.Is(err, expectedError) {
+			t.Fatalf(
+				"Receive(%v) err = %v; want %v",
+				timeoutMiliseconds,
+				err,
+				expectedError,
+			)
+		}
+
+	case <-time.After(time.Second):
+		t.Fatalf(
+			"Receive(%v) did not return after connection was closed",
+			timeoutMiliseconds,
+		)
+	}
+}
+
 func TestMockNetworkAdapter_Dial_Close_Sucess(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -620,7 +789,7 @@ func TestMockNetworkAdapter_Dial_Close_Sucess(t *testing.T) {
 }
 
 func TestMockNetworkAdapter_Dial_Close_AlreadyClosed(t *testing.T) {
-	network := adapters.NewMockNetworkAdapter()
+	network := adapters.NewMockNetworkAdapter(0.0)
 
 	address := entities.Address{
 		IP:   "127.0.0.1",
@@ -640,5 +809,107 @@ func TestMockNetworkAdapter_Dial_Close_AlreadyClosed(t *testing.T) {
 	expectedError := ports.ErrClosedNetworkConnection
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("Close() err = %v; want %v", err, expectedError)
+	}
+}
+
+func TestMockNetworkAdapter_PacketLoss_100Percent(t *testing.T) {
+	network := adapters.NewMockNetworkAdapter(1.0)
+
+	address := entities.Address{
+		IP:   "127.0.0.1",
+		Port: 8000,
+	}
+	listenConnection, err := network.Listen(address)
+	if err != nil {
+		t.Fatalf("Listen(%v) returned unexpected error: %v", address, err)
+	}
+	defer listenConnection.Close()
+
+	dialConnection, err := network.Dial(address)
+	if err != nil {
+		t.Fatalf("Dial(%v) returned unexpected error: %v", address, err)
+	}
+	defer dialConnection.Close()
+
+	payload := []byte("hello")
+	err = dialConnection.Send(payload)
+	if err != nil {
+		t.Fatalf("Send(%q) returned unexpected error: %v", string(payload), err)
+	}
+
+	receivedChan := make(chan []byte, 1)
+	go func() {
+		received, _, err := listenConnection.Receive()
+		if err == nil {
+			receivedChan <- received
+		}
+	}()
+
+	select {
+	case received := <-receivedChan:
+		t.Fatalf(
+			"unexpected packet received with 100%% packet loss: %q",
+			string(received),
+		)
+	case <-time.After(10 * time.Millisecond):
+	}
+}
+
+func TestMockNetworkAdapter_PacketLoss_RandomDrop(t *testing.T) {
+	network := adapters.NewMockNetworkAdapter(0.5)
+
+	address := entities.Address{
+		IP:   "127.0.0.1",
+		Port: 8000,
+	}
+	listenConnection, err := network.Listen(address)
+	if err != nil {
+		t.Fatalf("Listen(%v) returned unexpected error: %v", address, err)
+	}
+	defer listenConnection.Close()
+
+	dialConnection, err := network.Dial(address)
+	if err != nil {
+		t.Fatalf("Dial(%v) returned unexpected error: %v", address, err)
+	}
+	defer dialConnection.Close()
+
+	totalPackets := 1000
+	var receivedCount atomic.Int32
+
+	go func() {
+		for {
+			_, _, err := listenConnection.Receive()
+			if err != nil {
+				return
+			}
+			receivedCount.Add(1)
+		}
+	}()
+
+	payload := []byte("hello")
+	for range totalPackets {
+		err = dialConnection.Send(payload)
+		if err != nil {
+			t.Fatalf(
+				"Send(%q) returned unexpected error: %v",
+				string(payload),
+				err,
+			)
+		}
+		// time.Sleep(100 * time.Microsecond)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	count := int(receivedCount.Load())
+	if count == 0 {
+		t.Fatalf("all packets were dropped")
+	}
+	if count == totalPackets {
+		t.Fatalf("no packets were dropped")
+	}
+	if count < 400 || count > 600 {
+		t.Fatalf("recevived %d/%d for 50%% packets drop", count, totalPackets)
 	}
 }

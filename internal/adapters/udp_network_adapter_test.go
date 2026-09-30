@@ -6,7 +6,6 @@ import (
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
-	"net"
 	"testing"
 	"time"
 )
@@ -492,12 +491,13 @@ func TestUDPNetworkAdapter_Dial_Receive_Timeout(t *testing.T) {
 		if err == nil {
 			t.Fatalf("Receive(%v) err = nil; want a timeout error", timeout)
 		}
-		var netErr net.Error
-		if !errors.As(err, &netErr) || !netErr.Timeout() {
+		expectedError := ports.ErrTimeout
+		if !errors.Is(err, expectedError) {
 			t.Fatalf(
-				"Receive(%v) err = %v; want a timeout error",
+				"Receive(%v) err = %v; want %v",
 				timeout,
 				err,
+				expectedError,
 			)
 		}
 

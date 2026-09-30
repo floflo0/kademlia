@@ -130,6 +130,10 @@ func (c *udpDialConnection) Receive(timeoutMiliseconds uint32) ([]byte, error) {
 		if errors.Is(err, net.ErrClosed) {
 			return nil, ports.ErrClosedNetworkConnection
 		}
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			return nil, ports.ErrTimeout
+		}
 		return nil, err
 	}
 	return buffer[:n], nil
