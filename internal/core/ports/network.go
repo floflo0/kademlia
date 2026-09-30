@@ -25,4 +25,5 @@ type DialConnection interface {
 
 var (
 	ErrClosedNetworkConnection = errors.New("use of closed network connection")
+	ErrTimeout                 = errors.New("network timeout")
 )

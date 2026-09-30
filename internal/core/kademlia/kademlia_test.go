@@ -24,7 +24,7 @@ func createTestNode(port int, id *KademliaID, net ports.Network) *kademlia {
 
 // Test the joining procedure
 func TestJoinProcedure(t *testing.T) {
-	net := adapters.NewMockNetworkAdapter()
+	net := adapters.NewMockNetworkAdapter(0.0)
 	id01, _ := NewKademliaID("584f29d78cfc54f4d50d39206e6179aaf6a3ba94cf196cd46e982184dba7500e")
 	id02, _ := NewKademliaID("865a5e7a3dff6a43f9a6d5891408dc9b633a776374b78ca869e82b5915699788")
 	id0, _ := NewKademliaID("c2ca635f8aaa10cf452b46f8b76f87e808f16bc386d1dadffb0738c601341256")
@@ -101,7 +101,7 @@ func TestJoinProcedure(t *testing.T) {
 // TestNewKademlia verifies that a new Kademlia instance is properly initialized
 func TestNewKademlia(t *testing.T) {
 	id, _ := NewKademliaID("00000000000000000000000000000000000000000000000000000000000000001")
-	node := createTestNode(8000, id, adapters.NewMockNetworkAdapter())
+	node := createTestNode(8000, id, adapters.NewMockNetworkAdapter(0.0))
 
 	if node == nil {
 		t.Fatalf("Expected NewKademlia to return a non-nil instance")
@@ -118,7 +118,7 @@ func TestNewKademlia(t *testing.T) {
 
 func TestKademliaRun(t *testing.T) {
 	id, _ := NewKademliaID("00000000000000000000000000000000000000000000000000000000000000001")
-	node := createTestNode(8000, id, adapters.NewMockNetworkAdapter())
+	node := createTestNode(8000, id, adapters.NewMockNetworkAdapter(0.0))
 
 	go node.Run(nil)
 
@@ -130,7 +130,7 @@ func TestKademliaRun(t *testing.T) {
 }
 
 func TestLookupContactFunc(t *testing.T) {
-	net := adapters.NewMockNetworkAdapter()
+	net := adapters.NewMockNetworkAdapter(0.0)
 	id1, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
 	id2, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028")
 	id3, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000024")
@@ -179,7 +179,7 @@ func TestLookupContactFunc(t *testing.T) {
 }
 
 func TestLookupValueFunc(t *testing.T) {
-	net := adapters.NewMockNetworkAdapter()
+	net := adapters.NewMockNetworkAdapter(0.0)
 	id1, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
 	id2, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028")
 	id3, _ := NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f00")
@@ -228,7 +228,7 @@ func TestLookupValueFunc(t *testing.T) {
 }
 
 func TestStoreFunc(t *testing.T) {
-	net := adapters.NewMockNetworkAdapter()
+	net := adapters.NewMockNetworkAdapter(0.0)
 	id1, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
 	id2, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028")
 	id3, _ := NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f00")

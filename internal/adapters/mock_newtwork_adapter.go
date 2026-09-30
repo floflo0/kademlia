@@ -3,7 +3,9 @@ package adapters
 import (
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
+	"math/rand/v2"
 	"sync"
+	"time"
 )
 
 type message struct {
@@ -12,9 +14,10 @@ type message struct {
 }
 
 type MockNetworkAdapter struct {
-	mu        sync.RWMutex
-	listeners map[entities.Address]chan message
-	nextPort  int
+	mu                   sync.RWMutex
+	listeners            map[entities.Address]chan message
+	nextPort             int
+	packetLossPercentage float32
 }
 
 type mockListenConnection struct {
@@ -34,13 +37,27 @@ type mockDialConnection struct {
 	closed             bool
 }
 
-const listenersMessageChannelCapacity = 10
+const listenersMessageChannelCapacity = 1000
 
-func NewMockNetworkAdapter() *MockNetworkAdapter {
-	return &MockNetworkAdapter{
-		listeners: make(map[entities.Address]chan message),
-		nextPort:  10_000,
+func NewMockNetworkAdapter(packetLossPercentage float32) *MockNetworkAdapter {
+	if packetLossPercentage < 0.0 || packetLossPercentage > 1.0 {
+		panic("packet loss percentage must be between 0.0 and 1.0")
 	}
+	return &MockNetworkAdapter{
+		listeners:            make(map[entities.Address]chan message),
+		nextPort:             10_000,
+		packetLossPercentage: packetLossPercentage,
+	}
+}
+
+func (n *MockNetworkAdapter) shouldDrop() bool {
+	if n.packetLossPercentage <= 0.0 {
+		return false
+	}
+	if n.packetLossPercentage >= 1.0 {
+		return true
+	}
+	return rand.Float32() < n.packetLossPercentage
 }
 
 func (n *MockNetworkAdapter) Listen(address entities.Address) (ports.ListenConnection, error) {
@@ -87,6 +104,9 @@ func (n *MockNetworkAdapter) send(from entities.Address, to entities.Address, pa
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	if listener, exists := n.listeners[to]; exists {
+		if n.shouldDrop() {
+			return nil
+		}
 		message := message{
 			from:    from,
 			payload: payload,
@@ -153,21 +173,36 @@ func (c *mockDialConnection) Send(payload []byte) error {
 	return c.network.send(c.address, c.destinationAddress, payload)
 }
 
-func (c *mockDialConnection) Receive(timeoutMiliseconds uint32) ([]byte, error) {
+func (c *mockDialConnection) Receive(
+	timeoutMiliseconds uint32,
+) ([]byte, error) {
 	c.mu.RLock()
 	closed := c.closed
 	c.mu.RUnlock()
 	if closed {
 		return nil, ports.ErrClosedNetworkConnection
 	}
-	message, ok := <-c.messagesChannel
-	if !ok {
-		return nil, ports.ErrClosedNetworkConnection
+
+	if timeoutMiliseconds == 0 {
+		message, ok := <-c.messagesChannel
+		if !ok {
+			return nil, ports.ErrClosedNetworkConnection
+		}
+		return message.payload, nil
 	}
-	if message.from != c.destinationAddress {
-		panic("invalid source address")
+
+	timer := time.NewTimer(time.Duration(timeoutMiliseconds) * time.Millisecond)
+	defer timer.Stop()
+
+	select {
+	case message, ok := <-c.messagesChannel:
+		if !ok {
+			return nil, ports.ErrClosedNetworkConnection
+		}
+		return message.payload, nil
+	case <-timer.C:
+		return nil, ports.ErrTimeout
 	}
-	return message.payload, nil
 }
 
 func (c *mockDialConnection) Close() error {
