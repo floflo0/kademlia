@@ -691,8 +691,10 @@ func (k *kademlia) Store(key *entities.KademliaID, data string) error {
 	if candidates == nil {
 		candidates = &ContactCandidates{}
 	}
-	slog.Info("Adding myself", "[]Contact{k.me}", []Contact{k.me})
-	candidates.Append([]Contact{k.me})
+	contactMe := k.me
+	contactMe.CalcDistance(key)
+	slog.Info("Adding myself", "[]Contact{contactMe}", []Contact{contactMe})
+	candidates.Append([]Contact{contactMe})
 	candidates.Sort()
 	if candidates.Len() > k_const {
 		candidates.PopShortList(k_const)
