@@ -106,7 +106,7 @@ func showDataStoreCommand(
 		RunE: func(command *cobra.Command, args []string) error {
 			slog.Debug("Running show ds command")
 			for _, key := range kademlia.GetStoredKeys() {
-				fmt.Fprintln(out, key)
+				fmt.Fprintln(out, key.String())
 			}
 			return nil
 		},

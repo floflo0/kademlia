@@ -15,7 +15,7 @@ import (
 func newMockKademlia(
 	t *testing.T,
 	getBucketsFunction func() []*kademlia.Bucket,
-	getStoredKeysFunction func() []string,
+	getStoredKeysFunction func() []entities.KademliaID,
 ) kademlia.Kademlia {
 	return kademlia.NewMockKademlia(
 		func(firstContact *entities.Address) error {
@@ -50,7 +50,7 @@ func TestNewShowCommand(t *testing.T) {
 			t.Fatal("NewShowCommand() called GetBuckets")
 			return nil
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			t.Fatal("NewShowCommand() called GetStoredKeys")
 			return nil
 		},
@@ -70,7 +70,7 @@ func TestShowCommand_Execute_NoArguments(t *testing.T) {
 			t.Fatalf("Execute(%v) called GetBuckets", args)
 			return nil
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			t.Fatalf("Execute(%v) called GetStoredKeys", args)
 			return nil
 		},
@@ -91,7 +91,7 @@ func TestShowCommand_Execute_UnknownSubcommand(t *testing.T) {
 			t.Fatalf("Execute(%v) called GetBuckets", args)
 			return nil
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			t.Fatalf("Execute(%v) called GetStoredKeys", args)
 			return nil
 		},
@@ -112,7 +112,7 @@ func TestShowCommand_Execute_RT_TooManyArgs(t *testing.T) {
 			t.Fatalf("Execute(%v) called GetBuckets", args)
 			return nil
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			t.Fatalf("Execute(%v) called GetStoredKeys", args)
 			return nil
 		},
@@ -134,7 +134,7 @@ func TestShowCommand_Execute_RT_Empty(t *testing.T) {
 			getBucketsCalled = true
 			return []*kademlia.Bucket{}
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			t.Fatalf("Execute(%v) called GetStoredKeys", args)
 			return nil
 		},
@@ -183,7 +183,7 @@ func TestShowCommand_Execute_RT_Foo(t *testing.T) {
 				bucket3,
 			}
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			t.Fatalf("Execute(%v) called GetStoredKeys", args)
 			return nil
 		},
@@ -220,7 +220,7 @@ func TestShowCommand_Execute_DS_TooManyArgs(t *testing.T) {
 			t.Fatalf("Execute(%v) called GetBuckets", args)
 			return nil
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			t.Fatalf("Execute(%v) called GetStoredKeys", args)
 			return nil
 		},
@@ -242,9 +242,9 @@ func TestShowCommand_Execute_DS_Empty(t *testing.T) {
 			t.Fatalf("Execute(%v) called GetBuckets", args)
 			return nil
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			getStoredKeysCalled = true
-			return []string{}
+			return []entities.KademliaID{}
 		},
 	)
 	var mockOut bytes.Buffer
@@ -265,20 +265,32 @@ func TestShowCommand_Execute_DS_Empty(t *testing.T) {
 func TestShowCommand_Execute_DS_WithKeys(t *testing.T) {
 	getStoredKeysCalled := false
 	args := []string{"ds"}
+	key1, err := entities.NewKademliaID(
+		"0000000000000000000000000000000000000000000000000000000000000001",
+	)
+	if err != nil {
+		t.Fatalf("NewKademliaID() returns unexpected error: %v", err)
+	}
+	key2, err := entities.NewKademliaID(
+		"0000000000000000000000000000000000000000000000000000000000000002",
+	)
+	if err != nil {
+		t.Fatalf("NewKademliaID() returns unexpected error: %v", err)
+	}
 	mockKademlia := newMockKademlia(
 		t,
 		func() []*kademlia.Bucket {
 			t.Fatalf("Execute(%v) called GetBuckets", args)
 			return nil
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			getStoredKeysCalled = true
-			return []string{"key1", "key2"}
+			return []entities.KademliaID{*key1, *key2}
 		},
 	)
 	var mockOut bytes.Buffer
 	command := show.NewShowCommand(mockKademlia, &mockOut)
-	err := command.Execute(args)
+	err = command.Execute(args)
 	if err != nil {
 		t.Fatalf("Execute(%v) returned unexpected error: %v", args, err)
 	}
@@ -286,7 +298,10 @@ func TestShowCommand_Execute_DS_WithKeys(t *testing.T) {
 		t.Fatalf("Execute(%v) didn't call GetStoredKeys", args)
 	}
 	output := mockOut.String()
-	if output != "key1\nkey2\n" {
+	expectedOutput :=
+		"0000000000000000000000000000000000000000000000000000000000000001\n" +
+			"0000000000000000000000000000000000000000000000000000000000000002\n"
+	if output != expectedOutput {
 		t.Fatalf(
 			"Execute(%v) exepted keys listed output but got\n%s",
 			args,
@@ -302,7 +317,7 @@ func TestShowCommand_GetCompletions(t *testing.T) {
 			t.Fatal("GetCompletions() called GetBuckets")
 			return nil
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			t.Fatal("GetCompletions() called GetStoredKeys")
 			return nil
 		},

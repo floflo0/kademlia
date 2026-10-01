@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"errors"
+	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"kademlia/proto/generated"
@@ -28,7 +29,7 @@ type Kademlia interface {
 	Ping(address entities.Address) (time.Duration, error)
 	Put(data string) (*entities.KademliaID, error)
 	GetBuckets() []*Bucket
-	GetStoredKeys() []string
+	GetStoredKeys() []entities.KademliaID
 	GetValue(key string) (*string, *string, error)
 	Quit() error
 }
@@ -36,7 +37,7 @@ type Kademlia interface {
 type kademlia struct {
 	RoutingTable *RoutingTable
 	network      ports.Network
-	dataStore    *DataStore
+	dataStore    ports.DataStore
 	connection   ports.ListenConnection
 	firstContact *entities.Address
 	me           Contact
@@ -48,7 +49,7 @@ func NewKademlia(me Contact, net ports.Network) *kademlia {
 	return &kademlia{
 		RoutingTable: NewRoutingTable(me),
 		network:      net,
-		dataStore:    NewDataStore(),
+		dataStore:    adapters.NewInMemoryDataStore(),
 		me:           me,
 	}
 }
@@ -229,7 +230,7 @@ func (k *kademlia) handleFindValue(
 		address,
 	)
 	target := (*entities.KademliaID)(findValue.GetTargetId())
-	if value, err := k.dataStore.Get(target.String()); err == nil {
+	if value, err := k.dataStore.Get(*target); err == nil {
 		findValueResponse := generated.Message{
 			KademliaId: k.me.ID[:],
 			Payload: &generated.Message_FindValueResponse{
@@ -325,7 +326,8 @@ func (k *kademlia) handleStore(
 		return ErrDataLen
 	}
 
-	k.dataStore.Put(string(key), string(data))
+	id, _ := entities.NewKademliaID(string(key))
+	k.dataStore.Put(*id, string(data))
 
 	return nil
 }
@@ -532,7 +534,11 @@ func (k *kademlia) LookupContact(
 func (k *kademlia) LookupValue(
 	target *entities.KademliaID,
 ) (*string, *Contact, *ContactCandidates, error) {
-	// 1. Obtain the initial closest contacts from the local routing table
+	value, err := k.dataStore.Get(*target)
+	if err == nil {
+		return &value, &k.me, nil, nil
+	}
+
 	var candidates ContactCandidates
 	var noNewClosest bool
 	var probed int
@@ -541,11 +547,6 @@ func (k *kademlia) LookupValue(
 	valueFound := false
 
 	var alreadyContacted []Contact
-
-	if slices.Contains(k.dataStore.Keys(), target.String()) {
-		value := k.dataStore.data[target.String()]
-		return &value, &k.me, nil, nil
-	}
 
 	candidates.Append(k.RoutingTable.FindClosestContacts(target, k_const))
 	candidates.Sort()
@@ -755,7 +756,7 @@ func (k *kademlia) GetBuckets() []*Bucket {
 	return k.RoutingTable.getBuckets()
 }
 
-func (k *kademlia) GetStoredKeys() []string {
+func (k *kademlia) GetStoredKeys() []entities.KademliaID {
 	return k.dataStore.Keys()
 }
 
