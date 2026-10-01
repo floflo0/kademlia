@@ -23,7 +23,7 @@ func newMockKademlia(
 			return nil
 		},
 		pingFunction,
-		func(data string) (*kademlia.KademliaID, error) {
+		func(data string) (*entities.KademliaID, error) {
 			t.Fatal("Put should not be called")
 			return nil, nil
 		},

@@ -17,7 +17,7 @@ func TestNewMockKademlia(t *testing.T) {
 			t.Fatal("Ping should not be called")
 			return 0, nil
 		},
-		func(value string) (*kademlia.KademliaID, error) {
+		func(value string) (*entities.KademliaID, error) {
 			t.Fatal("Put should not be called")
 			return nil, nil
 		},

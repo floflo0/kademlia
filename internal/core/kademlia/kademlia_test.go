@@ -14,7 +14,11 @@ import (
 )
 
 // Helper function to create a dummy Kademlia node for testing
-func createTestNode(port int, id *KademliaID, net ports.Network) *kademlia {
+func createTestNode(
+	port int,
+	id *entities.KademliaID,
+	net ports.Network,
+) *kademlia {
 	me := NewContact(id, entities.Address{
 		IP:   "127.0.0.1",
 		Port: port,
@@ -25,13 +29,13 @@ func createTestNode(port int, id *KademliaID, net ports.Network) *kademlia {
 // Test the joining procedure
 func TestJoinProcedure(t *testing.T) {
 	net := adapters.NewMockNetworkAdapter(0.0)
-	id01, _ := NewKademliaID("584f29d78cfc54f4d50d39206e6179aaf6a3ba94cf196cd46e982184dba7500e")
-	id02, _ := NewKademliaID("865a5e7a3dff6a43f9a6d5891408dc9b633a776374b78ca869e82b5915699788")
-	id0, _ := NewKademliaID("c2ca635f8aaa10cf452b46f8b76f87e808f16bc386d1dadffb0738c601341256")
-	id1, _ := NewKademliaID("82d3b0c2c9d99d3c3b4955a37847e263bea9804713457a0524c37ff460aa2387")
-	id2, _ := NewKademliaID("04d7d678f7da903f3fda66d0571820524d776048d100e5281398478f19800a18")
-	id3, _ := NewKademliaID("68cb53c968df317fba321af9ea0328edd371b64087528316e1eccdde48712a69")
-	id4, _ := NewKademliaID("2255b708835f6f174f040e0cf049a7717874e176d27d621fa9430b3efb611aa3")
+	id01, _ := entities.NewKademliaID("584f29d78cfc54f4d50d39206e6179aaf6a3ba94cf196cd46e982184dba7500e")
+	id02, _ := entities.NewKademliaID("865a5e7a3dff6a43f9a6d5891408dc9b633a776374b78ca869e82b5915699788")
+	id0, _ := entities.NewKademliaID("c2ca635f8aaa10cf452b46f8b76f87e808f16bc386d1dadffb0738c601341256")
+	id1, _ := entities.NewKademliaID("82d3b0c2c9d99d3c3b4955a37847e263bea9804713457a0524c37ff460aa2387")
+	id2, _ := entities.NewKademliaID("04d7d678f7da903f3fda66d0571820524d776048d100e5281398478f19800a18")
+	id3, _ := entities.NewKademliaID("68cb53c968df317fba321af9ea0328edd371b64087528316e1eccdde48712a69")
+	id4, _ := entities.NewKademliaID("2255b708835f6f174f040e0cf049a7717874e176d27d621fa9430b3efb611aa3")
 	node01 := createTestNode(7997, id01, net)
 	node02 := createTestNode(7998, id02, net)
 	node0 := createTestNode(7999, id0, net)
@@ -100,7 +104,7 @@ func TestJoinProcedure(t *testing.T) {
 
 // TestNewKademlia verifies that a new Kademlia instance is properly initialized
 func TestNewKademlia(t *testing.T) {
-	id, _ := NewKademliaID("00000000000000000000000000000000000000000000000000000000000000001")
+	id, _ := entities.NewKademliaID("00000000000000000000000000000000000000000000000000000000000000001")
 	node := createTestNode(8000, id, adapters.NewMockNetworkAdapter(0.0))
 
 	if node == nil {
@@ -117,7 +121,7 @@ func TestNewKademlia(t *testing.T) {
 }
 
 func TestKademliaRun(t *testing.T) {
-	id, _ := NewKademliaID("00000000000000000000000000000000000000000000000000000000000000001")
+	id, _ := entities.NewKademliaID("00000000000000000000000000000000000000000000000000000000000000001")
 	node := createTestNode(8000, id, adapters.NewMockNetworkAdapter(0.0))
 
 	go node.Run(nil)
@@ -131,10 +135,10 @@ func TestKademliaRun(t *testing.T) {
 
 func TestLookupContactFunc(t *testing.T) {
 	net := adapters.NewMockNetworkAdapter(0.0)
-	id1, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
-	id2, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028")
-	id3, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000024")
-	id4, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000025")
+	id1, _ := entities.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
+	id2, _ := entities.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028")
+	id3, _ := entities.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000024")
+	id4, _ := entities.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000025")
 	node1 := createTestNode(8000, id1, net)
 	node2 := createTestNode(8001, id2, net)
 	node3 := createTestNode(8002, id3, net)
@@ -146,7 +150,7 @@ func TestLookupContactFunc(t *testing.T) {
 	node3.RoutingTable.AddContact(node4.me)
 	node4.RoutingTable.AddContact(node3.me)
 
-	target, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000027")
+	target, _ := entities.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000027")
 	go node1.Run(nil)
 	go node2.Run(nil)
 	go node3.Run(nil)
@@ -180,11 +184,11 @@ func TestLookupContactFunc(t *testing.T) {
 
 func TestLookupValueFunc(t *testing.T) {
 	net := adapters.NewMockNetworkAdapter(0.0)
-	id1, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
-	id2, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028")
-	id3, _ := NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f00")
-	id4, _ := NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f30")
-	id5, _ := NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f3c")
+	id1, _ := entities.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
+	id2, _ := entities.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028")
+	id3, _ := entities.NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f00")
+	id4, _ := entities.NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f30")
+	id5, _ := entities.NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f3c")
 	node1 := createTestNode(8000, id1, net)
 	node2 := createTestNode(8001, id2, net)
 	node3 := createTestNode(8002, id3, net)
@@ -201,7 +205,7 @@ func TestLookupValueFunc(t *testing.T) {
 	key := hex.EncodeToString(hash[:])
 	node4.dataStore.Put(key, valueTested)
 
-	target, _ := NewKademliaID(key)
+	target, _ := entities.NewKademliaID(key)
 
 	go node1.Run(nil)
 	go node2.Run(nil)
@@ -229,11 +233,11 @@ func TestLookupValueFunc(t *testing.T) {
 
 func TestStoreFunc(t *testing.T) {
 	net := adapters.NewMockNetworkAdapter(0.0)
-	id1, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
-	id2, _ := NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028")
-	id3, _ := NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f00")
-	id4, _ := NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f30")
-	id5, _ := NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f3c")
+	id1, _ := entities.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000000")
+	id2, _ := entities.NewKademliaID("0000000000000000000000000000000000000000000000000000000000000028")
+	id3, _ := entities.NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f00")
+	id4, _ := entities.NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f30")
+	id5, _ := entities.NewKademliaID("64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f3c")
 	node1 := createTestNode(8000, id1, net)
 	node2 := createTestNode(8001, id2, net)
 	node3 := createTestNode(8002, id3, net)
@@ -246,7 +250,7 @@ func TestStoreFunc(t *testing.T) {
 	node3.RoutingTable.AddContact(node4.me)
 	node3.RoutingTable.AddContact(node5.me)
 	valueTested := "Hello world"
-	key := NewKademliaIDFomString(valueTested)
+	key := entities.NewKademliaIDFromString(valueTested)
 
 	go node1.Run(nil)
 	go node2.Run(nil)

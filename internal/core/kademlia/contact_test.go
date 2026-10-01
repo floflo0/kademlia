@@ -6,7 +6,7 @@ import (
 )
 
 func createTestContact() *Contact {
-	me := NewContact(NewRandomKademliaID(), entities.Address{
+	me := NewContact(entities.NewRandomKademliaID(), entities.Address{
 		IP:   "127.0.0.1",
 		Port: 8000,
 	})

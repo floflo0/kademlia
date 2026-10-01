@@ -15,10 +15,15 @@ type RPCResponseNode struct {
 
 type DoubleNode struct {
 	address entities.Address
-	id      *KademliaID
+	id      *entities.KademliaID
 }
 
-func SendFindNode(requester_id *KademliaID, net ports.Network, recipient Contact, target *KademliaID) (*RPCResponseNode, error) {
+func SendFindNode(
+	requester_id *entities.KademliaID,
+	net ports.Network,
+	recipient Contact,
+	target *entities.KademliaID,
+) (*RPCResponseNode, error) {
 	slog.Debug("Sending find node", "recipient ID", recipient.ID)
 	connection, errDial := net.Dial(recipient.Address)
 	if errDial != nil {
@@ -63,7 +68,7 @@ func SendFindNode(requester_id *KademliaID, net ports.Network, recipient Contact
 	dataRecv := msgRecv.GetFindNodeReponse().GetTriples()
 	var response RPCResponseNode
 	for i := range len(dataRecv) {
-		id, _ := NewKademliaID(string(dataRecv[i].GetKademliaid()))
+		id, _ := entities.NewKademliaID(string(dataRecv[i].GetKademliaid()))
 		response.double = append(response.double, DoubleNode{
 			entities.Address{
 				IP:   dataRecv[i].GetAddress(),
