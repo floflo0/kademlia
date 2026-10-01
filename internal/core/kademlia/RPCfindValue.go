@@ -12,15 +12,20 @@ import (
 type RPCResponseValue struct {
 	double *[]DoubleValue
 	value  *string
-	sender *KademliaID
+	sender *entities.KademliaID
 }
 
 type DoubleValue struct {
 	address entities.Address
-	id      *KademliaID
+	id      *entities.KademliaID
 }
 
-func SendFindValue(requester_id *KademliaID, net ports.Network, recipient Contact, target *KademliaID) (*RPCResponseValue, error) {
+func SendFindValue(
+	requester_id *entities.KademliaID,
+	net ports.Network,
+	recipient Contact,
+	target *entities.KademliaID,
+) (*RPCResponseValue, error) {
 	slog.Debug("Sending find value", "recipient ID", recipient.ID)
 	connection, errDial := net.Dial(recipient.Address)
 	if errDial != nil {
@@ -68,7 +73,7 @@ func SendFindValue(requester_id *KademliaID, net ports.Network, recipient Contac
 	if valueRecv != "" {
 		response.double = nil
 		response.value = &valueRecv
-		response.sender = (*KademliaID)(msgRecv.GetKademliaId())
+		response.sender = (*entities.KademliaID)(msgRecv.GetKademliaId())
 		return &response, nil
 	}
 
@@ -76,7 +81,7 @@ func SendFindValue(requester_id *KademliaID, net ports.Network, recipient Contac
 	value := ""
 	dataRecv := msgRecv.GetFindValueResponse().GetTriples()
 	for i := range len(dataRecv) {
-		id, _ := NewKademliaID(string(dataRecv[i].GetKademliaid()))
+		id, _ := entities.NewKademliaID(string(dataRecv[i].GetKademliaid()))
 		doubleForResponse = append(doubleForResponse, DoubleValue{
 			address: entities.Address{
 				IP:   dataRecv[i].GetAddress(),
@@ -87,7 +92,7 @@ func SendFindValue(requester_id *KademliaID, net ports.Network, recipient Contac
 	}
 	response.double = &doubleForResponse
 	response.value = &value
-	response.sender = (*KademliaID)(msgRecv.GetKademliaId())
+	response.sender = (*entities.KademliaID)(msgRecv.GetKademliaId())
 
 	return &response, nil
 }

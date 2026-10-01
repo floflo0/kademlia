@@ -9,23 +9,23 @@ import (
 // Contact definition
 // stores the KademliaID, the ip address and the distance
 type Contact struct {
-	ID       *KademliaID
+	ID       *entities.KademliaID
 	Address  entities.Address
-	distance *KademliaID
+	distance *entities.KademliaID
 }
 
 // NewContact returns a new instance of a Contact
-func NewContact(id *KademliaID, address entities.Address) Contact {
+func NewContact(id *entities.KademliaID, address entities.Address) Contact {
 	return Contact{id, address, nil}
 }
 
 func NewContactFromAddress(address entities.Address) Contact {
-	return NewContact(NewKademliaIDFomAddress(address), address)
+	return NewContact(entities.NewKademliaIDFromAddress(address), address)
 }
 
 // CalcDistance calculates the distance to the target and
 // fills the contacts distance field
-func (contact *Contact) CalcDistance(target *KademliaID) {
+func (contact *Contact) CalcDistance(target *entities.KademliaID) {
 	contact.distance = contact.ID.CalcDistance(target)
 }
 

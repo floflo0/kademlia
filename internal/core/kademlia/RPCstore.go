@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"errors"
+	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"kademlia/proto/generated"
 	"log/slog"
@@ -11,7 +12,13 @@ import (
 
 var ErrTooMuchData = errors.New("Too much data, do not exceed 1024 bytes")
 
-func SendStore(requester_id *KademliaID, net ports.Network, recipient Contact, key string, data string) error {
+func SendStore(
+	requester_id *entities.KademliaID,
+	net ports.Network,
+	recipient Contact,
+	key string,
+	data string,
+) error {
 	slog.Debug("Sending Store", "recipient ID", recipient.ID)
 	connection, errDial := net.Dial(recipient.Address)
 	if errDial != nil {

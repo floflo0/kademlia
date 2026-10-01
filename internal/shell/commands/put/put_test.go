@@ -16,7 +16,7 @@ import (
 
 func newMockKademlia(
 	t *testing.T,
-	putFunction func(data string) (*kademlia.KademliaID, error),
+	putFunction func(data string) (*entities.KademliaID, error),
 ) kademlia.Kademlia {
 	return kademlia.NewMockKademlia(
 		func(firstContact *entities.Address) error {
@@ -59,7 +59,7 @@ func createTestFile(t *testing.T) string {
 func TestNewPutCommand(t *testing.T) {
 	mockKademlia := newMockKademlia(
 		t,
-		func(value string) (*kademlia.KademliaID, error) {
+		func(value string) (*entities.KademliaID, error) {
 			t.Fatal("NewPingCommand() called Put")
 			return nil, nil
 		},
@@ -75,7 +75,7 @@ func TestPutCommand_Execute_NoArgs(t *testing.T) {
 	args := []string{}
 	kademlia := newMockKademlia(
 		t,
-		func(value string) (*kademlia.KademliaID, error) {
+		func(value string) (*entities.KademliaID, error) {
 			t.Fatalf("Execute(%v) called Put", args)
 			return nil, nil
 		},
@@ -92,7 +92,7 @@ func TestPutCommand_Execute_TooManyArgs(t *testing.T) {
 	args := []string{"file.txt", "extra"}
 	mockKademlia := newMockKademlia(
 		t,
-		func(value string) (*kademlia.KademliaID, error) {
+		func(value string) (*entities.KademliaID, error) {
 			t.Fatalf("Execute(%v) called Put", args)
 			return nil, nil
 		},
@@ -110,7 +110,7 @@ func TestPutCommand_Execute_ReadFile_Error(t *testing.T) {
 	args := []string{"file.txt"}
 	mockKademlia := newMockKademlia(
 		t,
-		func(value string) (*kademlia.KademliaID, error) {
+		func(value string) (*entities.KademliaID, error) {
 			t.Fatalf("Execute(%v) called Put", args)
 			return nil, nil
 		},
@@ -128,7 +128,7 @@ func TestPutCommand_Execute_Put_Sucess(t *testing.T) {
 	filePath := createTestFile(t)
 	args := []string{filePath}
 	putCalled := false
-	id, err := kademlia.NewKademliaID(
+	id, err := entities.NewKademliaID(
 		"0000000000000000000000000000000000000000000000000000000000000000",
 	)
 	if err != nil {
@@ -136,7 +136,7 @@ func TestPutCommand_Execute_Put_Sucess(t *testing.T) {
 	}
 	mockKademlia := newMockKademlia(
 		t,
-		func(value string) (*kademlia.KademliaID, error) {
+		func(value string) (*entities.KademliaID, error) {
 			putCalled = true
 			return id, nil
 		},
@@ -170,7 +170,7 @@ func TestPutCommand_Execute_Put_Error(t *testing.T) {
 	expectedError := errors.New("test errror")
 	mockKademlia := newMockKademlia(
 		t,
-		func(value string) (*kademlia.KademliaID, error) {
+		func(value string) (*entities.KademliaID, error) {
 			putCalled = true
 			return nil, expectedError
 		},
@@ -189,7 +189,7 @@ func TestPutCommand_Execute_Put_Error(t *testing.T) {
 func TestPutCommand_GetCompletions(t *testing.T) {
 	mockKademlia := newMockKademlia(
 		t,
-		func(value string) (*kademlia.KademliaID, error) {
+		func(value string) (*entities.KademliaID, error) {
 			t.Fatal("GetCompletions() called Put")
 			return nil, nil
 		},

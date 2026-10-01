@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"container/list"
+	"kademlia/internal/core/entities"
 	"log/slog"
 	"sync"
 )
@@ -71,7 +72,9 @@ func (b *Bucket) RemoveContact(contact Contact) {
 
 // GetContactAndCalcDistance returns an array of Contacts where
 // the distance has already been calculated
-func (b *Bucket) GetContactAndCalcDistance(target *KademliaID) []Contact {
+func (b *Bucket) GetContactAndCalcDistance(
+	target *entities.KademliaID,
+) []Contact {
 	var contacts []Contact
 	b.mux.RLock()
 	for elt := b.list.Front(); elt != nil; elt = elt.Next() {
