@@ -326,7 +326,7 @@ func (k *kademlia) handleStore(
 		return ErrDataLen
 	}
 
-	id, _ := entities.NewKademliaID(string(key))
+	id := (*entities.KademliaID)(key)
 	k.dataStore.Put(*id, string(data))
 
 	return nil
@@ -408,6 +408,7 @@ func ParalelFindValue(
 }
 
 // LookupContact does an iterative search of the closest k nodes to a target ID
+// return nil if the node is alone in the network
 func (k *kademlia) LookupContact(
 	target *entities.KademliaID,
 ) (*ContactCandidates, error) {
@@ -421,6 +422,9 @@ func (k *kademlia) LookupContact(
 
 	candidates.Append(k.RoutingTable.FindClosestContacts(target, k_const))
 	candidates.Sort()
+	if candidates.Len() == 0 {
+		return nil, nil
+	}
 	closestNode := candidates.GetContact(0)
 	noNewClosest = false
 
@@ -670,7 +674,7 @@ func (k *kademlia) LookupValue(
 	if answer != nil {
 		for i := range len(candidates.contacts) {
 			if !slices.Contains(candidatesWithAnswer, *candidates.contacts[i].ID) {
-				SendStore(k.me.ID, k.network, candidates.contacts[i], target.String(), *answer)
+				SendStore(k.me.ID, k.network, candidates.contacts[i], target, *answer)
 			} else {
 				contactWithAnswer = candidates.contacts[i]
 				break
@@ -684,12 +688,25 @@ func (k *kademlia) LookupValue(
 
 func (k *kademlia) Store(key *entities.KademliaID, data string) error {
 	candidates, err := k.LookupContact(key)
+	if candidates == nil {
+		candidates = &ContactCandidates{}
+	}
+	contactMe := k.me
+	contactMe.CalcDistance(key)
+	slog.Info("Adding myself", "[]Contact{contactMe}", []Contact{contactMe})
+	candidates.Append([]Contact{contactMe})
+	candidates.Sort()
+	if candidates.Len() > k_const {
+		candidates.PopShortList(k_const)
+	}
+	slog.Info("Candidates are :", "candidates.contacts", candidates.contacts)
+
 	if err != nil {
 		return err
 	}
 
 	for i := range len(candidates.contacts) {
-		err := SendStore(k.me.ID, k.network, candidates.contacts[i], key.String(), data)
+		err := SendStore(k.me.ID, k.network, candidates.contacts[i], key, data)
 		if err != nil {
 			return err
 		}
