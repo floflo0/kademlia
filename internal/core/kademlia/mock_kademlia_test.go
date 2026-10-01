@@ -25,9 +25,9 @@ func TestNewMockKademlia(t *testing.T) {
 			t.Fatal("GetBucketsFunction should not be called")
 			return []*kademlia.Bucket{}
 		},
-		func() []string {
+		func() []entities.KademliaID {
 			t.Fatal("GetStoredKeysFunction should not be called")
-			return []string{}
+			return []entities.KademliaID{}
 		},
 		func(string) (*string, *string, error) {
 			t.Fatal("GetValueFunction should not be called")

@@ -1,8 +1,6 @@
 package kademlia
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
@@ -201,11 +199,16 @@ func TestLookupValueFunc(t *testing.T) {
 	node3.RoutingTable.AddContact(node4.me)
 	node3.RoutingTable.AddContact(node5.me)
 	valueTested := "Hello world"
-	hash := sha256.Sum256([]byte(valueTested))
-	key := hex.EncodeToString(hash[:])
-	node4.dataStore.Put(key, valueTested)
-
-	target, _ := entities.NewKademliaID(key)
+	key := entities.NewKademliaIDFromString(valueTested)
+	err := node4.dataStore.Put(*key, valueTested)
+	if err != nil {
+		t.Fatalf(
+			"Put(%q, %q) returns unexpected error: %v",
+			key.String(),
+			valueTested,
+			err,
+		)
+	}
 
 	go node1.Run(nil)
 	go node2.Run(nil)
@@ -213,14 +216,14 @@ func TestLookupValueFunc(t *testing.T) {
 	go node4.Run(nil)
 	go node5.Run(nil)
 
-	value, _, candidates, _ := node1.LookupValue(target)
+	value, _, candidates, _ := node1.LookupValue(key)
 
 	expectedValue := valueTested
 
 	require.Eventually(t, func() bool {
-		found, err := node5.dataStore.Get(key)
+		found, err := node5.dataStore.Get(*key)
 		return err == nil && found != ""
-	}, 100*time.Second, 1000*time.Millisecond)
+	}, 50*time.Millisecond, 5*time.Millisecond)
 
 	if candidates != nil {
 		t.Errorf("Expected number of candidates to be %v, got %v", 0, len(candidates.contacts))
@@ -261,10 +264,10 @@ func TestStoreFunc(t *testing.T) {
 	node1.Store(key, valueTested)
 
 	require.Eventually(t, func() bool {
-		found, err := node5.dataStore.Get(key.String())
-		found1, err := node4.dataStore.Get(key.String())
-		found2, err := node3.dataStore.Get(key.String())
-		found3, err := node2.dataStore.Get(key.String())
+		found, err := node5.dataStore.Get(*key)
+		found1, err := node4.dataStore.Get(*key)
+		found2, err := node3.dataStore.Get(*key)
+		found3, err := node2.dataStore.Get(*key)
 		return err == nil && found != "" && found1 != "" && found2 != "" && found3 != ""
-	}, 100*time.Second, 1000*time.Millisecond)
+	}, 50*time.Millisecond, 5*time.Millisecond)
 }
