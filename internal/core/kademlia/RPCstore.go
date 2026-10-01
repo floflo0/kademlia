@@ -16,7 +16,7 @@ func SendStore(
 	requester_id *entities.KademliaID,
 	net ports.Network,
 	recipient Contact,
-	key string,
+	key *entities.KademliaID,
 	data string,
 ) error {
 	slog.Debug("Sending Store", "recipient ID", recipient.ID)
@@ -34,7 +34,7 @@ func SendStore(
 		KademliaId: requester_id[:],
 		Payload: &generated.Message_Store{
 			Store: &generated.Store{
-				Key:         []byte(key),
+				Key:         key[:],
 				Data:        []byte(data),
 				DataLen:     int32(len(data)),
 				RequesterId: requester_id[:],

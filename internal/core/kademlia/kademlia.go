@@ -326,7 +326,7 @@ func (k *kademlia) handleStore(
 		return ErrDataLen
 	}
 
-	id, _ := entities.NewKademliaID(string(key))
+	id := (*entities.KademliaID)(key)
 	k.dataStore.Put(*id, string(data))
 
 	return nil
@@ -670,7 +670,7 @@ func (k *kademlia) LookupValue(
 	if answer != nil {
 		for i := range len(candidates.contacts) {
 			if !slices.Contains(candidatesWithAnswer, *candidates.contacts[i].ID) {
-				SendStore(k.me.ID, k.network, candidates.contacts[i], target.String(), *answer)
+				SendStore(k.me.ID, k.network, candidates.contacts[i], target, *answer)
 			} else {
 				contactWithAnswer = candidates.contacts[i]
 				break
@@ -689,7 +689,7 @@ func (k *kademlia) Store(key *entities.KademliaID, data string) error {
 	}
 
 	for i := range len(candidates.contacts) {
-		err := SendStore(k.me.ID, k.network, candidates.contacts[i], key.String(), data)
+		err := SendStore(k.me.ID, k.network, candidates.contacts[i], key, data)
 		if err != nil {
 			return err
 		}
