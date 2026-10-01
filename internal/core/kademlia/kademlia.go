@@ -408,6 +408,7 @@ func ParalelFindValue(
 }
 
 // LookupContact does an iterative search of the closest k nodes to a target ID
+// return nil if the node is alone in the network
 func (k *kademlia) LookupContact(
 	target *entities.KademliaID,
 ) (*ContactCandidates, error) {
@@ -421,6 +422,9 @@ func (k *kademlia) LookupContact(
 
 	candidates.Append(k.RoutingTable.FindClosestContacts(target, k_const))
 	candidates.Sort()
+	if candidates.Len() == 0 {
+		return nil, nil
+	}
 	closestNode := candidates.GetContact(0)
 	noNewClosest = false
 
@@ -684,6 +688,17 @@ func (k *kademlia) LookupValue(
 
 func (k *kademlia) Store(key *entities.KademliaID, data string) error {
 	candidates, err := k.LookupContact(key)
+	if candidates == nil {
+		candidates = &ContactCandidates{}
+	}
+	slog.Info("Adding myself", "[]Contact{k.me}", []Contact{k.me})
+	candidates.Append([]Contact{k.me})
+	candidates.Sort()
+	if candidates.Len() > k_const {
+		candidates.PopShortList(k_const)
+	}
+	slog.Info("Candidates are :", "candidates.contacts", candidates.contacts)
+
 	if err != nil {
 		return err
 	}
