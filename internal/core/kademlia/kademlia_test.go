@@ -215,6 +215,7 @@ func TestLookupValueFunc(t *testing.T) {
 	go node3.Run(nil)
 	go node4.Run(nil)
 	go node5.Run(nil)
+	time.Sleep(5 * time.Millisecond)
 
 	value, _, candidates, _ := node1.LookupValue(key)
 
@@ -260,6 +261,7 @@ func TestStoreFunc(t *testing.T) {
 	go node3.Run(nil)
 	go node4.Run(nil)
 	go node5.Run(nil)
+	time.Sleep(5 * time.Millisecond)
 
 	node1.Store(key, valueTested)
 
