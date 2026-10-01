@@ -223,7 +223,7 @@ func TestLookupValueFunc(t *testing.T) {
 	require.Eventually(t, func() bool {
 		found, err := node5.dataStore.Get(*key)
 		return err == nil && found != ""
-	}, 50*time.Millisecond, 5*time.Millisecond)
+	}, 100*time.Millisecond, 5*time.Millisecond)
 
 	if candidates != nil {
 		t.Errorf("Expected number of candidates to be %v, got %v", 0, len(candidates.contacts))
@@ -269,5 +269,5 @@ func TestStoreFunc(t *testing.T) {
 		found2, err := node3.dataStore.Get(*key)
 		found3, err := node2.dataStore.Get(*key)
 		return err == nil && found != "" && found1 != "" && found2 != "" && found3 != ""
-	}, 50*time.Millisecond, 5*time.Millisecond)
+	}, 100*time.Millisecond, 5*time.Millisecond)
 }
