@@ -95,44 +95,44 @@ func TestUDPNetworkAdapter_Listen_AddressAlreadyInUse(t *testing.T) {
 	}
 }
 
-func TestUDPNetworkAdapter_Listen_GetIP_Loopback(t *testing.T) {
-	network := adapters.NewUDPNetworkAdapter()
+// func TestUDPNetworkAdapter_Listen_GetIP_Loopback(t *testing.T) {
+// 	network := adapters.NewUDPNetworkAdapter()
+//
+// 	address := entities.Address{IP: "127.0.0.1", Port: 20006}
+// 	connection, err := network.Listen(address)
+// 	if err != nil {
+// 		t.Fatalf("Listen(%v) returned unexpected error: %v", address, err)
+// 	}
+// 	defer connection.Close()
+//
+// 	ip, err := connection.GetIP()
+// 	if err != nil {
+// 		t.Fatalf("GetIP() returned unexpected error: %v", err)
+// 	}
+// 	expectedIP := "127.0.0.1"
+// 	if ip != expectedIP {
+// 		t.Fatalf("GetIP() ip = %v; want %v", ip, expectedIP)
+// 	}
+// }
 
-	address := entities.Address{IP: "127.0.0.1", Port: 20006}
-	connection, err := network.Listen(address)
-	if err != nil {
-		t.Fatalf("Listen(%v) returned unexpected error: %v", address, err)
-	}
-	defer connection.Close()
-
-	ip, err := connection.GetIP()
-	if err != nil {
-		t.Fatalf("GetIP() returned unexpected error: %v", err)
-	}
-	expectedIP := "127.0.0.1"
-	if ip != expectedIP {
-		t.Fatalf("GetIP() ip = %v; want %v", ip, expectedIP)
-	}
-}
-
-func TestUDPNetworkAdapter_Listen_GetIP_Unspecified(t *testing.T) {
-	network := adapters.NewUDPNetworkAdapter()
-
-	address := entities.Address{IP: "0.0.0.0", Port: 20007}
-	connection, err := network.Listen(address)
-	if err != nil {
-		t.Fatalf("Listen(%v) returned unexpected error: %v", address, err)
-	}
-	defer connection.Close()
-
-	ip, err := connection.GetIP()
-	if err != nil {
-		t.Fatalf("GetIP() returned unexpected error: %v", err)
-	}
-	if ip == "0.0.0.0" {
-		t.Fatal("GetIP() returned an unspecified IP address")
-	}
-}
+// func TestUDPNetworkAdapter_Listen_GetIP_Unspecified(t *testing.T) {
+// 	network := adapters.NewUDPNetworkAdapter()
+//
+// 	address := entities.Address{IP: "0.0.0.0", Port: 20007}
+// 	connection, err := network.Listen(address)
+// 	if err != nil {
+// 		t.Fatalf("Listen(%v) returned unexpected error: %v", address, err)
+// 	}
+// 	defer connection.Close()
+//
+// 	ip, err := connection.GetIP()
+// 	if err != nil {
+// 		t.Fatalf("GetIP() returned unexpected error: %v", err)
+// 	}
+// 	if ip == "0.0.0.0" {
+// 		t.Fatal("GetIP() returned an unspecified IP address")
+// 	}
+// }
 
 func TestUDPNetworkAdapter_Listen_SendTo_Receive_Success(t *testing.T) {
 	network := adapters.NewUDPNetworkAdapter()

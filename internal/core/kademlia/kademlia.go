@@ -45,10 +45,11 @@ type kademlia struct {
 }
 
 // NewKademlia creates and initializes a new instance of the Kademlia node
-func NewKademlia(me Contact, net ports.Network) *kademlia {
+func NewKademlia(address entities.Address, network ports.Network) *kademlia {
+	me := NewContactFromAddress(address)
 	return &kademlia{
 		RoutingTable: NewRoutingTable(me),
-		network:      net,
+		network:      network,
 		dataStore:    adapters.NewInMemoryDataStore(),
 		me:           me,
 	}
@@ -76,11 +77,7 @@ func (k *kademlia) Run(firstContact *entities.Address) error {
 	k.mux.Lock()
 	k.connection = connection
 	k.mux.Unlock()
-	ip, err := connection.GetIP()
-	if err != nil {
-		return err
-	}
-	slog.Info("Server started", "ip", ip, "port", k.me.Address.Port)
+	slog.Info("Server started", "ip", k.me.Address.IP, "port", k.me.Address.Port)
 
 	if firstContact != nil {
 		slog.Info("Joining the Kademlia network")

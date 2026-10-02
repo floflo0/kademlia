@@ -8,10 +8,10 @@ import (
 type Network interface {
 	Listen(address entities.Address) (ListenConnection, error)
 	Dial(address entities.Address) (DialConnection, error)
+	GetIP() (string, error)
 }
 
 type ListenConnection interface {
-	GetIP() (string, error)
 	SendTo(address entities.Address, payload []byte) error
 	Receive() ([]byte, *entities.Address, error)
 	Close() error

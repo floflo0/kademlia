@@ -46,11 +46,12 @@ func TestNewRootCommand_Execute_NoArgs(t *testing.T) {
 	startCalled := false
 	rootCommand, _, _ := mockRootCommand(
 		func(appConfig cli.Config) error {
-			if appConfig.Host != config.DefaultHost {
+			expectedHost := ""
+			if appConfig.Host != expectedHost {
 				t.Fatalf(
 					"Execute() Host = %q; want %q",
 					appConfig.Host,
-					config.DefaultHost,
+					expectedHost,
 				)
 			}
 			if appConfig.Port != config.DefaultPort {

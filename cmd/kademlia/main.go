@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"kademlia/internal/adapters"
 	"kademlia/internal/cli"
 	"kademlia/internal/core/entities"
@@ -17,11 +18,19 @@ func main() {
 	rootCmd := cli.NewRootCommand(os.Args[0], func(config cli.Config) error {
 		network := adapters.NewUDPNetworkAdapter()
 
+		host := config.Host
+		if host == "" {
+			var err error
+			host, err = network.GetIP()
+			if err != nil {
+				return fmt.Errorf("failed to get IP: %w", err)
+			}
+		}
 		kademlia := kademlia.NewKademlia(
-			kademlia.NewContactFromAddress(entities.Address{
-				IP:   config.Host,
+			entities.Address{
+				IP:   host,
 				Port: config.Port,
-			}),
+			},
 			network,
 		)
 

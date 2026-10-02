@@ -100,6 +100,10 @@ func (n *MockNetworkAdapter) Dial(address entities.Address) (ports.DialConnectio
 	return connection, nil
 }
 
+func (*MockNetworkAdapter) GetIP() (string, error) {
+	return "127.0.0.1", nil
+}
+
 func (n *MockNetworkAdapter) send(from entities.Address, to entities.Address, payload []byte) error {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -119,10 +123,6 @@ func (n *MockNetworkAdapter) send(from entities.Address, to entities.Address, pa
 		}
 	}
 	return ErrDestinationNotFound
-}
-
-func (c *mockListenConnection) GetIP() (string, error) {
-	return c.address.IP, nil
 }
 
 func (c *mockListenConnection) SendTo(address entities.Address, payload []byte) error {

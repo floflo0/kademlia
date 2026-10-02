@@ -42,7 +42,7 @@ func NewRootCommand(
 	rootCommand.Flags().StringVar(
 		&appConfig.Host,
 		"host",
-		config.DefaultHost,
+		"",
 		"the host",
 	)
 	rootCommand.Flags().IntVarP(
