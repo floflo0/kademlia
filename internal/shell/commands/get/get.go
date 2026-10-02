@@ -33,12 +33,12 @@ func (c *getCommand) buildCommand() *cobra.Command {
 		RunE: func(command *cobra.Command, args []string) error {
 			slog.Debug("Running get command", "args", args)
 			if len(args[0]) != 64 {
-				return errors.New("Bad length, must be 64")
+				return errors.New("bad length, must be 64")
 			}
 			value, contactID, err := c.kademlia.GetValue(args[0])
 			if err != nil {
 				if err == kademlia.ErrNoContact {
-					return errors.New("Value not found")
+					return errors.New("value not found")
 				}
 				return err
 			}
