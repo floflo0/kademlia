@@ -56,21 +56,43 @@ func (*UDPNetworkAdapter) Dial(address entities.Address) (ports.DialConnection, 
 	return connection, nil
 }
 
-func (c *udpListenConnection) GetIP() (string, error) {
-	addr := c.connection.LocalAddr().(*net.UDPAddr)
-	if addr.IP.IsUnspecified() {
-		conn, err := net.DialUDP("udp", nil, &net.UDPAddr{
-			IP:   net.ParseIP("1.1.1.1"),
-			Port: 80,
-		})
-		if err != nil {
-			return "", err
-		}
-		defer conn.Close()
-		addr := conn.LocalAddr().(*net.UDPAddr)
-		return addr.IP.String(), nil
+func (*UDPNetworkAdapter) GetIP() (string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
 	}
-	return addr.IP.String(), nil
+
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+
+			if ip.To4() != nil {
+				return ip.String(), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no non-loopback IPv4 address found")
 }
 
 func (c *udpListenConnection) SendTo(address entities.Address, payload []byte) error {
