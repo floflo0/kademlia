@@ -19,7 +19,7 @@ type DoubleNode struct {
 }
 
 func SendFindNode(
-	requester_id *entities.KademliaID,
+	requesterID *entities.KademliaID,
 	net ports.Network,
 	recipient Contact,
 	target *entities.KademliaID,
@@ -32,11 +32,11 @@ func SendFindNode(
 	}
 
 	findNodeMessage := generated.Message{
-		KademliaId: requester_id[:],
+		KademliaId: requesterID[:],
 		Payload: &generated.Message_FindNode{
 			FindNode: &generated.FindNode{
 				TargetId:    target[:],
-				RequesterId: requester_id[:],
+				RequesterId: requesterID[:],
 				RecipientId: recipient.ID[:],
 			},
 		},
@@ -68,7 +68,10 @@ func SendFindNode(
 	dataRecv := msgRecv.GetFindNodeReponse().GetTriples()
 	var response RPCResponseNode
 	for i := range len(dataRecv) {
-		id, _ := entities.NewKademliaID(string(dataRecv[i].GetKademliaid()))
+		id, err := entities.NewKademliaID(string(dataRecv[i].GetKademliaid()))
+		if err != nil {
+			return nil, err
+		}
 		response.double = append(response.double, DoubleNode{
 			entities.Address{
 				IP:   dataRecv[i].GetAddress(),

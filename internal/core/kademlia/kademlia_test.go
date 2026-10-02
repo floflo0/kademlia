@@ -70,6 +70,7 @@ func TestJoinProcedure(t *testing.T) {
 	go node2.Run(nil)
 	go node3.Run(nil)
 	go node4.Run(&entities.Address{IP: "127.0.0.1", Port: 8002})
+	time.Sleep(5 * time.Millisecond)
 
 	node4.mux.RLock()
 	cond := len(node4.RoutingTable.FindClosestContacts(node4.me.ID, 3)) < 3
@@ -121,14 +122,23 @@ func TestNewKademlia(t *testing.T) {
 func TestKademliaRun(t *testing.T) {
 	id, _ := entities.NewKademliaID("00000000000000000000000000000000000000000000000000000000000000001")
 	node := createTestNode(8000, id, adapters.NewMockNetworkAdapter(0.0))
+	errChan := make(chan error, 1)
 
-	go node.Run(nil)
+	go func() {
+		errChan <- node.Run(nil)
+	}()
+	time.Sleep(5 * time.Millisecond)
 
-	// if err != nil {
-	// 	t.Fatalf("Expected Run to not return an error")
-	// }
+	err := node.Quit()
 
-	node.Quit()
+	if err != nil {
+		t.Fatalf("Quit() returns unexpected error: %v", err)
+	}
+
+	err = <-errChan
+	if err != nil {
+		t.Fatalf("Run(nil) returns unexpected error: %v", err)
+	}
 }
 
 func TestLookupContactFunc(t *testing.T) {
@@ -153,6 +163,7 @@ func TestLookupContactFunc(t *testing.T) {
 	go node2.Run(nil)
 	go node3.Run(nil)
 	go node4.Run(nil)
+	time.Sleep(5 * time.Millisecond)
 
 	candidates, _ := node1.LookupContact(target)
 
@@ -161,15 +172,15 @@ func TestLookupContactFunc(t *testing.T) {
 	}
 
 	if len(candidates.contacts) != len(expectedCandidates.contacts) {
-		t.Errorf("Expected number of candidates to be %v, got %v", len(expectedCandidates.contacts), len(candidates.contacts))
+		t.Fatalf("Expected number of candidates to be %v, got %v", len(expectedCandidates.contacts), len(candidates.contacts))
 	}
 
 	for i := range len(expectedCandidates.contacts) {
 		if *candidates.contacts[i].ID != *expectedCandidates.contacts[i].ID {
-			t.Errorf("Expected candidate ID to be %v, got %v", *expectedCandidates.contacts[i].ID, *candidates.contacts[i].ID)
+			t.Fatalf("Expected candidate ID to be %v, got %v", *expectedCandidates.contacts[i].ID, *candidates.contacts[i].ID)
 		}
 		if candidates.contacts[i].Address != expectedCandidates.contacts[i].Address {
-			t.Errorf("Expected candidate address to be %v, got %v", expectedCandidates.contacts[i].Address, candidates.contacts[i].Address)
+			t.Fatalf("Expected candidate address to be %v, got %v", expectedCandidates.contacts[i].Address, candidates.contacts[i].Address)
 		}
 	}
 
@@ -222,16 +233,16 @@ func TestLookupValueFunc(t *testing.T) {
 	expectedValue := valueTested
 
 	require.Eventually(t, func() bool {
-		found, err := node5.dataStore.Get(*key)
-		return err == nil && found != ""
+		_, err := node5.dataStore.Get(*key)
+		return err == nil
 	}, 100*time.Millisecond, 5*time.Millisecond)
 
 	if candidates != nil {
-		t.Errorf("Expected number of candidates to be %v, got %v", 0, len(candidates.contacts))
+		t.Fatalf("Expected number of candidates to be %v, got %v", 0, len(candidates.contacts))
 	}
 
 	if *value != expectedValue {
-		t.Errorf("Expected value to be %v, got %v", expectedValue, *value)
+		t.Fatalf("Expected value to be %v, got %v", expectedValue, *value)
 	}
 }
 
@@ -263,13 +274,21 @@ func TestStoreFunc(t *testing.T) {
 	go node5.Run(nil)
 	time.Sleep(5 * time.Millisecond)
 
-	node1.Store(key, valueTested)
+	err := node1.Store(key, valueTested)
+	if err != nil {
+		t.Fatalf(
+			"Store(%q, %q) returns unexpected error: %v",
+			key.String(),
+			valueTested,
+			err,
+		)
+	}
 
 	require.Eventually(t, func() bool {
-		found, err := node5.dataStore.Get(*key)
-		found1, err := node4.dataStore.Get(*key)
-		found2, err := node3.dataStore.Get(*key)
-		found3, err := node2.dataStore.Get(*key)
-		return err == nil && found != "" && found1 != "" && found2 != "" && found3 != ""
+		_, err1 := node5.dataStore.Get(*key)
+		_, err2 := node4.dataStore.Get(*key)
+		_, err3 := node3.dataStore.Get(*key)
+		_, err4 := node2.dataStore.Get(*key)
+		return err1 == nil && err2 == nil && err3 == nil && err4 == nil
 	}, 100*time.Millisecond, 5*time.Millisecond)
 }

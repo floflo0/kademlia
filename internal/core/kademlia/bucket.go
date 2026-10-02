@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-const bucketSize = 8
+const bucketSize = K
 
 type Bucket struct {
 	list *list.List
