@@ -115,7 +115,7 @@ func (k *kademlia) Quit() error {
 	return nil
 }
 
-func (k *kademlia) UpdateRoutingTable(
+func (k *kademlia) updateRoutingTable(
 	id entities.KademliaID,
 	address entities.Address,
 ) {
@@ -133,12 +133,19 @@ func (k *kademlia) handleRequest(
 		return
 	}
 
-	k.UpdateRoutingTable(entities.KademliaID(message.KademliaId), address)
+	requesterID := (entities.KademliaID)(message.Contact.KademliaId)
+	k.updateRoutingTable(
+		requesterID,
+		entities.Address{
+			IP:   message.Contact.Ip,
+			Port: int(message.Contact.Port),
+		},
+	)
 	switch payload := message.Payload.(type) {
 	case *generated.Message_Ping:
 		k.handlePing(connection, payload.Ping, address)
 	case *generated.Message_FindNode:
-		k.handleFindNode(connection, payload.FindNode, address)
+		k.handleFindNode(connection, payload.FindNode, address, requesterID)
 	case *generated.Message_FindValue:
 		k.handleFindValue(connection, payload.FindValue, address)
 	case *generated.Message_Store:
@@ -150,28 +157,23 @@ func (k *kademlia) handleFindNode(
 	connection ports.ListenConnection,
 	findNode *generated.FindNode,
 	address entities.Address,
+	requesterID entities.KademliaID,
 ) error {
+	key := (entities.KademliaID)(findNode.GetKey())
 	slog.Info(
-		"Receive find node message",
-		"requestTarget",
-		findNode.GetTargetId(),
-		"requestRequester",
-		findNode.GetRequesterId(),
-		"requestRecipient",
-		findNode.GetRecipientId(),
+		"Receive FIND_NODE RPC",
+		"key",
+		key.String(),
 		"from",
 		address,
 	)
 
 	var candidatesRaw ContactCandidates
-	candidatesRaw.Append(k.RoutingTable.FindClosestContacts((*entities.KademliaID)(findNode.GetTargetId()), K+1))
-	candidatesRaw.Sort()
+	candidatesRaw.Append(k.RoutingTable.FindClosestContacts(&key, K+1))
 
-	requesterID := (*entities.KademliaID)(findNode.GetRequesterId())
 	var candidates ContactCandidates
 	for i := range len(candidatesRaw.contacts) {
-		slog.Debug("IDs", "candidates_raw.contacts[i].ID", candidatesRaw.contacts[i].ID, "requester_ID", requesterID)
-		if *candidatesRaw.contacts[i].ID != *requesterID {
+		if *candidatesRaw.contacts[i].ID != requesterID {
 			candidates.contacts = append(candidates.contacts, candidatesRaw.contacts[i])
 		}
 	}
@@ -183,6 +185,7 @@ func (k *kademlia) handleFindNode(
 	var findNodeTriples generated.FindNodeResponse
 
 	for i := range len(candidates.contacts) {
+		slog.Debug("Find node response", "contactID", candidatesRaw.contacts[i].ID)
 		triple := generated.Triples{
 			Address:    candidates.contacts[i].Address.IP,
 			Port:       int32(candidates.contacts[i].Address.Port),
@@ -192,7 +195,11 @@ func (k *kademlia) handleFindNode(
 	}
 
 	findNodeResponse := generated.Message{
-		KademliaId: k.me.ID[:],
+		Contact: &generated.Contact{
+			KademliaId: k.me.ID[:],
+			Ip:         k.me.Address.IP,
+			Port:       int32(k.me.Address.Port),
+		},
 		Payload: &generated.Message_FindNodeReponse{
 			FindNodeReponse: &findNodeTriples,
 		},
@@ -230,7 +237,11 @@ func (k *kademlia) handleFindValue(
 	target := (*entities.KademliaID)(findValue.GetTargetId())
 	if value, err := k.dataStore.Get(*target); err == nil {
 		findValueResponse := generated.Message{
-			KademliaId: k.me.ID[:],
+			Contact: &generated.Contact{
+				KademliaId: k.me.ID[:],
+				Ip:         k.me.Address.IP,
+				Port:       int32(k.me.Address.Port),
+			},
 			Payload: &generated.Message_FindValueResponse{
 				FindValueResponse: &generated.FindValueResponse{
 					Triples: nil,
@@ -283,7 +294,11 @@ func (k *kademlia) handleFindValue(
 	findValueTriple.Value = ""
 
 	findValueResponse := generated.Message{
-		KademliaId: k.me.ID[:],
+		Contact: &generated.Contact{
+			KademliaId: k.me.ID[:],
+			Ip:         k.me.Address.IP,
+			Port:       int32(k.me.Address.Port),
+		},
 		Payload: &generated.Message_FindValueResponse{
 			FindValueResponse: &findValueTriple,
 		},
@@ -360,7 +375,7 @@ func (k *kademlia) handlePing(
 	return nil
 }
 
-func ParalelFindNode(
+func (k *kademlia) ParalelFindNode(
 	reqID *entities.KademliaID,
 	kNet ports.Network,
 	contact Contact,
@@ -370,7 +385,7 @@ func ParalelFindNode(
 	wg *sync.WaitGroup,
 ) error {
 	defer wg.Done()
-	ansFindNode, err := SendFindNode(reqID, kNet, contact, target)
+	ansFindNode, err := k.SendFindNode(contact, target)
 	if err != nil {
 		if errors.Is(err, syscall.ECONNREFUSED) {
 			remove <- contact
@@ -384,7 +399,7 @@ func ParalelFindNode(
 	return nil
 }
 
-func ParalelFindValue(
+func (k *kademlia) ParalelFindValue(
 	reqID *entities.KademliaID,
 	kNet ports.Network,
 	contact Contact,
@@ -394,8 +409,9 @@ func ParalelFindValue(
 	wg *sync.WaitGroup,
 ) error {
 	defer wg.Done()
-	ansFindValue, err := SendFindValue(reqID, kNet, contact, target)
+	ansFindValue, err := k.SendFindValue(contact, target)
 	if err != nil {
+		slog.Debug("errror")
 		if errors.Is(err, syscall.ECONNREFUSED) {
 			remove <- contact
 		} else {
@@ -413,43 +429,43 @@ func ParalelFindValue(
 func (k *kademlia) LookupContact(
 	target *entities.KademliaID,
 ) (*ContactCandidates, error) {
-	// 1. Obtain the initial closest contacts from the local routing table
 	var candidates ContactCandidates
-	var noNewClosest bool
-	var probed int
-
-	var alreadyContacted []Contact
-
 	candidates.Append(k.RoutingTable.FindClosestContacts(target, K))
-	candidates.Sort()
 	if candidates.Len() == 0 {
 		return nil, nil
 	}
-	closestNode := candidates.GetContact(0)
-	noNewClosest = false
 
-	slog.Debug("Before Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", K)
-	for (!noNewClosest) || (probed != K) {
-		var wg sync.WaitGroup
+	var alreadyContacted []Contact
+	var probed int
+	closestNode := candidates.GetContact(0)
+	noNewClosest := false
+
+	for (!noNewClosest) && (probed != K) {
 		ans := make(chan RPCResponseNode, alpha)
 		remove := make(chan Contact, alpha)
-		slog.Debug("In Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", K)
+		slog.Debug("In Loop", "noNewClosest", noNewClosest, "probed", probed)
 
+		var waitGroup sync.WaitGroup
 		for nodeCounter := range min(alpha, candidates.Len()) {
 			slog.Debug("Counter", "nodeCounter", nodeCounter, "candidates", candidates.Len())
 			contact := candidates.GetContact(nodeCounter)
 			if !slices.Contains(alreadyContacted, contact) {
 				alreadyContacted = append(alreadyContacted, contact)
-				k.mux.RLock()
-				reqID := k.me.ID
-				meNet := k.network
-				k.mux.RUnlock()
-				wg.Add(1)
-				go ParalelFindNode(reqID, meNet, contact, target, ans, remove, &wg)
+				waitGroup.Add(1)
+				go k.ParalelFindNode(
+					k.me.ID,
+					k.network,
+					contact,
+					target,
+					ans,
+					remove,
+					&waitGroup,
+				)
+
 			}
 		}
+		waitGroup.Wait()
 
-		wg.Wait()
 		var removed []Contact
 		for range len(remove) {
 			toRemove := <-remove
@@ -473,7 +489,7 @@ func (k *kademlia) LookupContact(
 		// For race condition, as we have removed all the node that didn't answered
 		// we only have the nodes that responded so we have to update the routing table
 		for i := range len(candidates.contacts) {
-			k.UpdateRoutingTable(*candidates.contacts[i].ID, candidates.contacts[i].Address)
+			k.updateRoutingTable(*candidates.contacts[i].ID, candidates.contacts[i].Address)
 		}
 
 		var newCandidates []Contact
@@ -511,13 +527,13 @@ func (k *kademlia) LookupContact(
 
 		candidates.Append(newCandidatesWithoutPreviousCandidates)
 		slog.Debug("Candidates after find_node", "candidates", candidates)
+		if candidates.Len() == 0 {
+			return nil, nil
+		}
 		candidates.Sort()
 		slog.Debug("Candidates after sort", "candidates", candidates)
 		for i := range len(candidates.contacts) {
 			slog.Debug("Distance", "distance", candidates.contacts[i].distance)
-		}
-		if candidates.Len() == 0 {
-			return nil, nil
 		}
 		newClosestNode := candidates.GetContact(0)
 
@@ -586,7 +602,7 @@ func (k *kademlia) LookupValue(
 				meNet := k.network
 				k.mux.RUnlock()
 				wg.Add(1)
-				go ParalelFindValue(reqID, meNet, contact, target, ans, remove, &wg)
+				go k.ParalelFindValue(reqID, meNet, contact, target, ans, remove, &wg)
 			}
 		}
 
@@ -611,7 +627,7 @@ func (k *kademlia) LookupValue(
 		// For race condition, as we have removed all the node that didn't answered
 		// we only have the nodes that responded so we have to update the routing table
 		for i := range len(candidates.contacts) {
-			k.UpdateRoutingTable(*candidates.contacts[i].ID, candidates.contacts[i].Address)
+			k.updateRoutingTable(*candidates.contacts[i].ID, candidates.contacts[i].Address)
 		}
 
 		var newCandidates []Contact
@@ -688,7 +704,7 @@ func (k *kademlia) LookupValue(
 	if answer != nil {
 		for i := range len(candidates.contacts) {
 			if !slices.Contains(candidatesWithAnswer, *candidates.contacts[i].ID) {
-				SendStore(k.me.ID, k.network, candidates.contacts[i], target, *answer)
+				k.SendStore(candidates.contacts[i], target, *answer)
 			} else {
 				contactWithAnswer = candidates.contacts[i]
 				break
@@ -720,7 +736,7 @@ func (k *kademlia) Store(key *entities.KademliaID, data string) error {
 	slog.Info("Candidates are :", "candidates.contacts", candidates.contacts)
 
 	for i := range len(candidates.contacts) {
-		err := SendStore(k.me.ID, k.network, candidates.contacts[i], key, data)
+		err := k.SendStore(candidates.contacts[i], key, data)
 		if err != nil {
 			return err
 		}
@@ -739,7 +755,11 @@ func (k *kademlia) Ping(address entities.Address) (time.Duration, error) {
 	requestUUID := uuid.New().String()
 
 	pingMessage := generated.Message{
-		KademliaId: k.me.ID[:],
+		Contact: &generated.Contact{
+			KademliaId: k.me.ID[:],
+			Ip:         k.me.Address.IP,
+			Port:       int32(k.me.Address.Port),
+		},
 		Payload: &generated.Message_Ping{
 			Ping: &generated.Ping{
 				RequestUuid: requestUUID,

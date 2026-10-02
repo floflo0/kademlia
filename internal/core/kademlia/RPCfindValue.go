@@ -2,7 +2,6 @@ package kademlia
 
 import (
 	"kademlia/internal/core/entities"
-	"kademlia/internal/core/ports"
 	"kademlia/proto/generated"
 	"log/slog"
 
@@ -20,25 +19,27 @@ type DoubleValue struct {
 	id      *entities.KademliaID
 }
 
-func SendFindValue(
-	requesterID *entities.KademliaID,
-	net ports.Network,
+func (k *kademlia) SendFindValue(
 	recipient Contact,
 	target *entities.KademliaID,
 ) (*RPCResponseValue, error) {
 	slog.Debug("Sending find value", "recipient ID", recipient.ID)
-	connection, errDial := net.Dial(recipient.Address)
+	connection, errDial := k.network.Dial(recipient.Address)
 	if errDial != nil {
 		slog.Debug("Dial")
 		return nil, errDial
 	}
 
 	findValueMessage := generated.Message{
-		KademliaId: requesterID[:],
+		Contact: &generated.Contact{
+			KademliaId: k.me.ID[:],
+			Ip:         k.me.Address.IP,
+			Port:       int32(k.me.Address.Port),
+		},
 		Payload: &generated.Message_FindValue{
 			FindValue: &generated.FindValue{
 				TargetId:    target[:],
-				RequesterId: requesterID[:],
+				RequesterId: k.me.ID[:],
 				RecipientId: recipient.ID[:],
 			},
 		},
@@ -73,7 +74,7 @@ func SendFindValue(
 	if valueRecv != "" {
 		response.double = nil
 		response.value = &valueRecv
-		response.sender = (*entities.KademliaID)(msgRecv.GetKademliaId())
+		response.sender = (*entities.KademliaID)(msgRecv.Contact.KademliaId)
 		return &response, nil
 	}
 
@@ -95,7 +96,7 @@ func SendFindValue(
 	}
 	response.double = &doubleForResponse
 	response.value = &value
-	response.sender = (*entities.KademliaID)(msgRecv.GetKademliaId())
+	response.sender = (*entities.KademliaID)(msgRecv.Contact.KademliaId)
 
 	return &response, nil
 }
