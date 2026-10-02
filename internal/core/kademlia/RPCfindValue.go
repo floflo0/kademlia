@@ -21,7 +21,7 @@ type DoubleValue struct {
 }
 
 func SendFindValue(
-	requester_id *entities.KademliaID,
+	requesterID *entities.KademliaID,
 	net ports.Network,
 	recipient Contact,
 	target *entities.KademliaID,
@@ -34,11 +34,11 @@ func SendFindValue(
 	}
 
 	findValueMessage := generated.Message{
-		KademliaId: requester_id[:],
+		KademliaId: requesterID[:],
 		Payload: &generated.Message_FindValue{
 			FindValue: &generated.FindValue{
 				TargetId:    target[:],
-				RequesterId: requester_id[:],
+				RequesterId: requesterID[:],
 				RecipientId: recipient.ID[:],
 			},
 		},
@@ -81,7 +81,10 @@ func SendFindValue(
 	value := ""
 	dataRecv := msgRecv.GetFindValueResponse().GetTriples()
 	for i := range len(dataRecv) {
-		id, _ := entities.NewKademliaID(string(dataRecv[i].GetKademliaid()))
+		id, err := entities.NewKademliaID(string(dataRecv[i].GetKademliaid()))
+		if err != nil {
+			return nil, err
+		}
 		doubleForResponse = append(doubleForResponse, DoubleValue{
 			address: entities.Address{
 				IP:   dataRecv[i].GetAddress(),
