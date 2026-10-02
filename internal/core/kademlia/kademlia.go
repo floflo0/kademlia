@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const K = 4
+const K = 10
 const alpha = 3
 const b = 1
 const timeout = 1000 // ms
@@ -429,7 +429,7 @@ func (k *kademlia) LookupContact(
 	noNewClosest = false
 
 	slog.Debug("Before Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", K)
-	for (!noNewClosest) && (probed != K) {
+	for (!noNewClosest) || (probed != K) {
 		var wg sync.WaitGroup
 		ans := make(chan RPCResponseNode, alpha)
 		remove := make(chan Contact, alpha)
@@ -457,11 +457,16 @@ func (k *kademlia) LookupContact(
 			removed = append(removed, toRemove)
 		}
 
+		max := len(candidates.contacts)
 		for i := range len(removed) {
-			for j := range len(candidates.contacts) {
+			for j := 0; j < max; {
 				if removed[i] == candidates.contacts[j] {
+					slog.Info("Removing a contact from the candidate list")
 					candidates.contacts = append(candidates.contacts[:j], candidates.contacts[j+1:]...)
+					max = max - 1
+					continue
 				}
+				j++
 			}
 		}
 
@@ -476,6 +481,7 @@ func (k *kademlia) LookupContact(
 
 		for range len(ans) {
 			candidatesAns := <-ans
+			slog.Info("Number of answer received", "len(candidatesAns.double)", len(candidatesAns.double))
 			for i := range len(candidatesAns.double) {
 				newCandidate := candidatesAns.double[i]
 				newContact := NewContact(newCandidate.id, newCandidate.address)
@@ -495,20 +501,23 @@ func (k *kademlia) LookupContact(
 		}
 
 		slog.Debug("New candidates before removing", "new_candidates", newCandidates)
-		var newCandidatesWithoutCandidates []Contact
+		var newCandidatesWithoutPreviousCandidates []Contact
 
 		for i := range len(newCandidates) {
 			if !slices.Contains(candidatesID, *newCandidates[i].ID) {
-				newCandidatesWithoutCandidates = append(newCandidatesWithoutCandidates, newCandidates[i])
+				newCandidatesWithoutPreviousCandidates = append(newCandidatesWithoutPreviousCandidates, newCandidates[i])
 			}
 		}
 
-		candidates.Append(newCandidatesWithoutCandidates)
+		candidates.Append(newCandidatesWithoutPreviousCandidates)
 		slog.Debug("Candidates after find_node", "candidates", candidates)
 		candidates.Sort()
 		slog.Debug("Candidates after sort", "candidates", candidates)
 		for i := range len(candidates.contacts) {
 			slog.Debug("Distance", "distance", candidates.contacts[i].distance)
+		}
+		if candidates.Len() == 0 {
+			return nil, nil
 		}
 		newClosestNode := candidates.GetContact(0)
 
@@ -523,7 +532,7 @@ func (k *kademlia) LookupContact(
 
 		probed = 0
 		for i := range len(candidates.contacts) {
-			if slices.Contains(alreadyContacted, candidates.GetContact(i)) {
+			if slices.Contains(alreadyContacted, candidates.contacts[i]) {
 				probed += 1
 			}
 		}
@@ -561,7 +570,7 @@ func (k *kademlia) LookupValue(
 	noNewClosest = false
 
 	slog.Debug("Before Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", K)
-	for (!noNewClosest) && (probed != K) && !valueFound {
+	for ((!noNewClosest) || (probed != K)) && !valueFound {
 		var wg sync.WaitGroup
 		ans := make(chan RPCResponseValue, alpha)
 		remove := make(chan Contact, alpha)
@@ -590,10 +599,12 @@ func (k *kademlia) LookupValue(
 		}
 
 		for i := range len(removed) {
-			for j := range len(candidates.contacts) {
+			for j := 0; j < len(candidates.contacts); {
 				if removed[i] == candidates.contacts[j] {
 					candidates.contacts = append(candidates.contacts[:j], candidates.contacts[j+1:]...)
+					continue
 				}
+				j++
 			}
 		}
 
@@ -649,6 +660,9 @@ func (k *kademlia) LookupValue(
 		for i := range len(candidates.contacts) {
 			slog.Debug("Distance", "distance", candidates.contacts[i].distance)
 		}
+		if candidates.Len() == 0 {
+			return nil, nil, nil, nil
+		}
 		newClosestNode := candidates.GetContact(0)
 
 		if newClosestNode == closestNode {
@@ -663,7 +677,7 @@ func (k *kademlia) LookupValue(
 
 		probed = 0
 		for i := range len(candidates.contacts) {
-			if slices.Contains(alreadyContacted, candidates.GetContact(i)) {
+			if slices.Contains(alreadyContacted, candidates.contacts[i]) {
 				probed += 1
 			}
 		}

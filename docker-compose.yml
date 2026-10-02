@@ -1,7 +1,17 @@
 services:
+  bootstrap:
+    build: .
+    tty: true
+    stdin_open: true
+
   node:
     build: .
     deploy:
-      replicas: 5
+      replicas: 49
     tty: true
     stdin_open: true
+    depends_on:
+      bootstrap:
+        condition: service_started
+    command:
+      - --known-contact=172.19.0.2:8080

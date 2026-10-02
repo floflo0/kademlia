@@ -24,4 +24,4 @@ WORKDIR /app
 
 COPY --from=builder /app/kademlia /app/kademlia
 
-CMD ["./kademlia"]
+ENTRYPOINT ["./kademlia"]
