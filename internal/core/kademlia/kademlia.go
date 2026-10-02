@@ -16,13 +16,13 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const k_const = 4
+const K = 4
 const alpha = 3
 const b = 1
 const timeout = 1000 // ms
 
-var ErrDataLen = errors.New("Lenght of data does not correspond to Data lenght sent")
-var ErrNoContact = errors.New("No contact")
+var ErrDataLen = errors.New("lenght of data does not correspond to Data lenght sent")
+var ErrNoContact = errors.New("no contact")
 
 type Kademlia interface {
 	Run(firstContact *entities.Address) error
@@ -153,7 +153,7 @@ func (k *kademlia) handleFindNode(
 	connection ports.ListenConnection,
 	findNode *generated.FindNode,
 	address entities.Address,
-) {
+) error {
 	slog.Info(
 		"Receive find node message",
 		"requestTarget",
@@ -166,21 +166,21 @@ func (k *kademlia) handleFindNode(
 		address,
 	)
 
-	var candidates_raw ContactCandidates
-	candidates_raw.Append(k.RoutingTable.FindClosestContacts((*entities.KademliaID)(findNode.GetTargetId()), k_const+1))
-	candidates_raw.Sort()
+	var candidatesRaw ContactCandidates
+	candidatesRaw.Append(k.RoutingTable.FindClosestContacts((*entities.KademliaID)(findNode.GetTargetId()), K+1))
+	candidatesRaw.Sort()
 
-	requester_ID := (*entities.KademliaID)(findNode.GetRequesterId())
+	requesterID := (*entities.KademliaID)(findNode.GetRequesterId())
 	var candidates ContactCandidates
-	for i := range len(candidates_raw.contacts) {
-		slog.Debug("IDs", "candidates_raw.contacts[i].ID", candidates_raw.contacts[i].ID, "requester_ID", requester_ID)
-		if *candidates_raw.contacts[i].ID != *requester_ID {
-			candidates.contacts = append(candidates.contacts, candidates_raw.contacts[i])
+	for i := range len(candidatesRaw.contacts) {
+		slog.Debug("IDs", "candidates_raw.contacts[i].ID", candidatesRaw.contacts[i].ID, "requester_ID", requesterID)
+		if *candidatesRaw.contacts[i].ID != *requesterID {
+			candidates.contacts = append(candidates.contacts, candidatesRaw.contacts[i])
 		}
 	}
 
-	if len(candidates.contacts) > k_const {
-		candidates.PopShortList(k_const)
+	if len(candidates.contacts) > K {
+		candidates.PopShortList(K)
 	}
 
 	var findNodeTriples generated.FindNodeResponse
@@ -204,20 +204,21 @@ func (k *kademlia) handleFindNode(
 	payload, err := proto.Marshal(&findNodeResponse)
 	if err != nil {
 		slog.Error("error", "err", err)
-		return
+		return err
 	}
 
 	if err := connection.SendTo(address, payload); err != nil {
 		slog.Error("error", "err", err)
-		return
+		return err
 	}
+	return nil
 }
 
 func (k *kademlia) handleFindValue(
 	connection ports.ListenConnection,
 	findValue *generated.FindValue,
 	address entities.Address,
-) {
+) error {
 	slog.Info(
 		"Receive find value message",
 		"requestTarget",
@@ -244,31 +245,31 @@ func (k *kademlia) handleFindValue(
 		payload, err := proto.Marshal(&findValueResponse)
 		if err != nil {
 			slog.Error("error", "err", err)
-			return
+			return err
 		}
 
 		if err := connection.SendTo(address, payload); err != nil {
 			slog.Error("error", "err", err)
-			return
+			return err
 		}
-		return
+		return nil
 	}
 
-	var candidates_raw ContactCandidates
-	candidates_raw.Append(k.RoutingTable.FindClosestContacts(target, k_const+1))
-	candidates_raw.Sort()
+	var candidatesRaw ContactCandidates
+	candidatesRaw.Append(k.RoutingTable.FindClosestContacts(target, K+1))
+	candidatesRaw.Sort()
 
-	requester_ID := (*entities.KademliaID)(findValue.GetRequesterId())
+	requesterID := (*entities.KademliaID)(findValue.GetRequesterId())
 	var candidates ContactCandidates
-	for i := range len(candidates_raw.contacts) {
-		slog.Debug("IDs", "candidates_raw.contacts[i].ID", candidates_raw.contacts[i].ID, "requester_ID", requester_ID)
-		if *candidates_raw.contacts[i].ID != *requester_ID {
-			candidates.contacts = append(candidates.contacts, candidates_raw.contacts[i])
+	for i := range len(candidatesRaw.contacts) {
+		slog.Debug("IDs", "candidates_raw.contacts[i].ID", candidatesRaw.contacts[i].ID, "requester_ID", requesterID)
+		if *candidatesRaw.contacts[i].ID != *requesterID {
+			candidates.contacts = append(candidates.contacts, candidatesRaw.contacts[i])
 		}
 	}
 
-	if len(candidates.contacts) > k_const {
-		candidates.PopShortList(k_const)
+	if len(candidates.contacts) > K {
+		candidates.PopShortList(K)
 	}
 
 	var findValueTriple generated.FindValueResponse
@@ -294,13 +295,15 @@ func (k *kademlia) handleFindValue(
 	payload, err := proto.Marshal(&findValueResponse)
 	if err != nil {
 		slog.Error("error", "err", err)
-		return
+		return err
 	}
 
 	if err := connection.SendTo(address, payload); err != nil {
 		slog.Error("error", "err", err)
-		return
+		return err
 	}
+
+	return nil
 }
 
 func (k *kademlia) handleStore(
@@ -336,7 +339,7 @@ func (k *kademlia) handlePing(
 	connection ports.ListenConnection,
 	ping *generated.Ping,
 	address entities.Address,
-) {
+) error {
 	slog.Info(
 		"Receive ping message",
 		"requestUuid",
@@ -350,17 +353,18 @@ func (k *kademlia) handlePing(
 	payload, err := proto.Marshal(&pongMessage)
 	if err != nil {
 		slog.Error("error", "err", err)
-		return
+		return err
 	}
 
 	if err := connection.SendTo(address, payload); err != nil {
 		slog.Error("error", "err", err)
-		return
+		return err
 	}
+	return nil
 }
 
 func ParalelFindNode(
-	req_id *entities.KademliaID,
+	reqID *entities.KademliaID,
 	kNet ports.Network,
 	contact Contact,
 	target *entities.KademliaID,
@@ -369,7 +373,7 @@ func ParalelFindNode(
 	wg *sync.WaitGroup,
 ) error {
 	defer wg.Done()
-	ansFindNode, err := SendFindNode(req_id, kNet, contact, target)
+	ansFindNode, err := SendFindNode(reqID, kNet, contact, target)
 	if err != nil {
 		if errors.Is(err, syscall.ECONNREFUSED) {
 			remove <- contact
@@ -384,7 +388,7 @@ func ParalelFindNode(
 }
 
 func ParalelFindValue(
-	req_id *entities.KademliaID,
+	reqID *entities.KademliaID,
 	kNet ports.Network,
 	contact Contact,
 	target *entities.KademliaID,
@@ -393,7 +397,7 @@ func ParalelFindValue(
 	wg *sync.WaitGroup,
 ) error {
 	defer wg.Done()
-	ansFindValue, err := SendFindValue(req_id, kNet, contact, target)
+	ansFindValue, err := SendFindValue(reqID, kNet, contact, target)
 	if err != nil {
 		if errors.Is(err, syscall.ECONNREFUSED) {
 			remove <- contact
@@ -416,11 +420,10 @@ func (k *kademlia) LookupContact(
 	var candidates ContactCandidates
 	var noNewClosest bool
 	var probed int
-	// TODO: No RPC response reaction,
 
 	var alreadyContacted []Contact
 
-	candidates.Append(k.RoutingTable.FindClosestContacts(target, k_const))
+	candidates.Append(k.RoutingTable.FindClosestContacts(target, K))
 	candidates.Sort()
 	if candidates.Len() == 0 {
 		return nil, nil
@@ -428,33 +431,33 @@ func (k *kademlia) LookupContact(
 	closestNode := candidates.GetContact(0)
 	noNewClosest = false
 
-	slog.Debug("Before Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", k_const)
-	for (!noNewClosest) && (probed != k_const) {
+	slog.Debug("Before Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", K)
+	for (!noNewClosest) && (probed != K) {
 		var wg sync.WaitGroup
 		ans := make(chan RPCResponseNode, alpha)
 		remove := make(chan Contact, alpha)
-		slog.Debug("In Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", k_const)
+		slog.Debug("In Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", K)
 
 		for nodeCounter := range min(alpha, candidates.Len()) {
 			slog.Debug("Counter", "nodeCounter", nodeCounter, "candidates", candidates.Len())
 			contact := candidates.GetContact(nodeCounter)
-			if slices.Contains(alreadyContacted, contact) == false {
+			if !slices.Contains(alreadyContacted, contact) {
 				alreadyContacted = append(alreadyContacted, contact)
 				k.mux.RLock()
-				req_id := k.me.ID
-				me_net := k.network
+				reqID := k.me.ID
+				meNet := k.network
 				k.mux.RUnlock()
 				wg.Add(1)
-				go ParalelFindNode(req_id, me_net, contact, target, ans, remove, &wg)
+				go ParalelFindNode(reqID, meNet, contact, target, ans, remove, &wg)
 			}
 		}
 
 		wg.Wait()
 		var removed []Contact
 		for range len(remove) {
-			to_remove := <-remove
-			k.RoutingTable.RemoveContact(to_remove)
-			removed = append(removed, to_remove)
+			toRemove := <-remove
+			k.RoutingTable.RemoveContact(toRemove)
+			removed = append(removed, toRemove)
 		}
 
 		for i := range len(removed) {
@@ -471,39 +474,39 @@ func (k *kademlia) LookupContact(
 			k.UpdateRoutingTable(*candidates.contacts[i].ID, candidates.contacts[i].Address)
 		}
 
-		var new_candidates []Contact
-		var new_candidates_id []entities.KademliaID
+		var newCandidates []Contact
+		var newCandidatesID []entities.KademliaID
 
 		for range len(ans) {
 			candidatesAns := <-ans
 			for i := range len(candidatesAns.double) {
-				new_candidate := candidatesAns.double[i]
-				new_contact := NewContact(new_candidate.id, new_candidate.address)
-				new_contact.CalcDistance(target)
-				if !slices.Contains(new_candidates_id, *new_contact.ID) {
-					new_candidates = append(new_candidates, new_contact)
-					new_candidates_id = append(new_candidates_id, *new_contact.ID)
-					slog.Debug("Candidates ID", "new_candidates_id", new_candidates_id)
+				newCandidate := candidatesAns.double[i]
+				newContact := NewContact(newCandidate.id, newCandidate.address)
+				newContact.CalcDistance(target)
+				if !slices.Contains(newCandidatesID, *newContact.ID) {
+					newCandidates = append(newCandidates, newContact)
+					newCandidatesID = append(newCandidatesID, *newContact.ID)
+					slog.Debug("Candidates ID", "new_candidates_id", newCandidatesID)
 				}
 			}
 		}
 
-		var candidates_id []entities.KademliaID
+		var candidatesID []entities.KademliaID
 
 		for i := range len(candidates.contacts) {
-			candidates_id = append(candidates_id, *candidates.contacts[i].ID)
+			candidatesID = append(candidatesID, *candidates.contacts[i].ID)
 		}
 
-		slog.Debug("New candidates before removing", "new_candidates", new_candidates)
-		var new_candidates_without_candidates []Contact
+		slog.Debug("New candidates before removing", "new_candidates", newCandidates)
+		var newCandidatesWithoutCandidates []Contact
 
-		for i := range len(new_candidates) {
-			if !slices.Contains(candidates_id, *new_candidates[i].ID) {
-				new_candidates_without_candidates = append(new_candidates_without_candidates, new_candidates[i])
+		for i := range len(newCandidates) {
+			if !slices.Contains(candidatesID, *newCandidates[i].ID) {
+				newCandidatesWithoutCandidates = append(newCandidatesWithoutCandidates, newCandidates[i])
 			}
 		}
 
-		candidates.Append(new_candidates_without_candidates)
+		candidates.Append(newCandidatesWithoutCandidates)
 		slog.Debug("Candidates after find_node", "candidates", candidates)
 		candidates.Sort()
 		slog.Debug("Candidates after sort", "candidates", candidates)
@@ -517,18 +520,18 @@ func (k *kademlia) LookupContact(
 		}
 
 		closestNode = newClosestNode
-		if candidates.Len() > k_const {
-			candidates.PopShortList(k_const)
+		if candidates.Len() > K {
+			candidates.PopShortList(K)
 		}
 
 		probed = 0
 		for i := range len(candidates.contacts) {
-			if slices.Contains(alreadyContacted, candidates.GetContact(i)) == true {
+			if slices.Contains(alreadyContacted, candidates.GetContact(i)) {
 				probed += 1
 			}
 		}
 	}
-	slog.Info("Stopping the Lookup Loop", "!noNewClosest", !noNewClosest, "probed != k_const", probed != k_const)
+	slog.Info("Stopping the Lookup Loop", "!noNewClosest", !noNewClosest, "probed != k_const", probed != K)
 	slog.Info("State of bucket", "k.RoutingTable.FindClosestContacts(k.me.ID, 10)", k.RoutingTable.FindClosestContacts(k.me.ID, 10))
 
 	return &candidates, nil
@@ -539,7 +542,7 @@ func (k *kademlia) LookupValue(
 	target *entities.KademliaID,
 ) (*string, *Contact, *ContactCandidates, error) {
 	value, err := k.dataStore.Get(*target)
-	if err == nil {
+	if value != "" && err == nil {
 		return &value, &k.me, nil, nil
 	}
 
@@ -552,7 +555,7 @@ func (k *kademlia) LookupValue(
 
 	var alreadyContacted []Contact
 
-	candidates.Append(k.RoutingTable.FindClosestContacts(target, k_const))
+	candidates.Append(k.RoutingTable.FindClosestContacts(target, K))
 	candidates.Sort()
 	if len(candidates.contacts) == 0 {
 		return nil, nil, nil, ErrNoContact
@@ -560,33 +563,33 @@ func (k *kademlia) LookupValue(
 	closestNode := candidates.GetContact(0)
 	noNewClosest = false
 
-	slog.Debug("Before Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", k_const)
-	for (!noNewClosest) && (probed != k_const) && !valueFound {
+	slog.Debug("Before Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", K)
+	for (!noNewClosest) && (probed != K) && !valueFound {
 		var wg sync.WaitGroup
 		ans := make(chan RPCResponseValue, alpha)
 		remove := make(chan Contact, alpha)
-		slog.Debug("In Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", k_const)
+		slog.Debug("In Loop", "noNewClosest", noNewClosest, "probed", probed, "k_const", K)
 
 		for nodeCounter := range min(alpha, candidates.Len()) {
 			slog.Debug("Counter", "nodeCounter", nodeCounter, "candidates", candidates.Len())
 			contact := candidates.GetContact(nodeCounter)
-			if slices.Contains(alreadyContacted, contact) == false {
+			if !slices.Contains(alreadyContacted, contact) {
 				alreadyContacted = append(alreadyContacted, contact)
 				k.mux.RLock()
-				req_id := k.me.ID
-				me_net := k.network
+				reqID := k.me.ID
+				meNet := k.network
 				k.mux.RUnlock()
 				wg.Add(1)
-				go ParalelFindValue(req_id, me_net, contact, target, ans, remove, &wg)
+				go ParalelFindValue(reqID, meNet, contact, target, ans, remove, &wg)
 			}
 		}
 
 		wg.Wait()
 		var removed []Contact
 		for range len(remove) {
-			to_remove := <-remove
-			k.RoutingTable.RemoveContact(to_remove)
-			removed = append(removed, to_remove)
+			toRemove := <-remove
+			k.RoutingTable.RemoveContact(toRemove)
+			removed = append(removed, toRemove)
 		}
 
 		for i := range len(removed) {
@@ -603,8 +606,8 @@ func (k *kademlia) LookupValue(
 			k.UpdateRoutingTable(*candidates.contacts[i].ID, candidates.contacts[i].Address)
 		}
 
-		var new_candidates []Contact
-		var new_candidates_id []entities.KademliaID
+		var newCandidates []Contact
+		var newCandidatesID []entities.KademliaID
 
 		for range len(ans) {
 			candidatesAns := <-ans
@@ -615,34 +618,34 @@ func (k *kademlia) LookupValue(
 			} else {
 				double := *candidatesAns.double
 				for i := range len(double) {
-					new_candidate := double[i]
-					new_contact := NewContact(new_candidate.id, new_candidate.address)
-					new_contact.CalcDistance(target)
-					if !slices.Contains(new_candidates_id, *new_contact.ID) {
-						new_candidates = append(new_candidates, new_contact)
-						new_candidates_id = append(new_candidates_id, *new_contact.ID)
-						slog.Debug("Candidates ID", "new_candidates_id", new_candidates_id)
+					newCandidate := double[i]
+					newContact := NewContact(newCandidate.id, newCandidate.address)
+					newContact.CalcDistance(target)
+					if !slices.Contains(newCandidatesID, *newContact.ID) {
+						newCandidates = append(newCandidates, newContact)
+						newCandidatesID = append(newCandidatesID, *newContact.ID)
+						slog.Debug("Candidates ID", "new_candidates_id", newCandidatesID)
 					}
 				}
 			}
 		}
 
-		var candidates_id []entities.KademliaID
+		var candidatesID []entities.KademliaID
 
 		for i := range len(candidates.contacts) {
-			candidates_id = append(candidates_id, *candidates.contacts[i].ID)
+			candidatesID = append(candidatesID, *candidates.contacts[i].ID)
 		}
 
-		slog.Debug("New candidates before removing", "new_candidates", new_candidates)
-		var new_candidates_without_candidates []Contact
+		slog.Debug("New candidates before removing", "new_candidates", newCandidates)
+		var newCandidatesWithoutCandidates []Contact
 
-		for i := range len(new_candidates) {
-			if !slices.Contains(candidates_id, *new_candidates[i].ID) {
-				new_candidates_without_candidates = append(new_candidates_without_candidates, new_candidates[i])
+		for i := range len(newCandidates) {
+			if !slices.Contains(candidatesID, *newCandidates[i].ID) {
+				newCandidatesWithoutCandidates = append(newCandidatesWithoutCandidates, newCandidates[i])
 			}
 		}
 
-		candidates.Append(new_candidates_without_candidates)
+		candidates.Append(newCandidatesWithoutCandidates)
 		slog.Debug("Candidates after find_node", "candidates", candidates)
 		candidates.Sort()
 		slog.Debug("Candidates after sort", "candidates", candidates)
@@ -656,19 +659,19 @@ func (k *kademlia) LookupValue(
 		}
 
 		closestNode = newClosestNode
-		if candidates.Len() > k_const {
-			candidates.PopShortList(k_const)
+		if candidates.Len() > K {
+			candidates.PopShortList(K)
 		}
 		slog.Info("List of candidates in order", "candidates.contacts", candidates.contacts)
 
 		probed = 0
 		for i := range len(candidates.contacts) {
-			if slices.Contains(alreadyContacted, candidates.GetContact(i)) == true {
+			if slices.Contains(alreadyContacted, candidates.GetContact(i)) {
 				probed += 1
 			}
 		}
 	}
-	slog.Info("Stopping the Lookup Loop", "!noNewClosest", !noNewClosest, "probed != k_const", probed != k_const, "valueFound", valueFound)
+	slog.Info("Stopping the Lookup Loop", "!noNewClosest", !noNewClosest, "probed != k_const", probed != K, "valueFound", valueFound)
 	slog.Info("State of bucket", "k.RoutingTable.FindClosestContacts(k.me.ID, 10)", k.RoutingTable.FindClosestContacts(k.me.ID, 10))
 	var contactWithAnswer Contact
 	if answer != nil {
@@ -691,19 +694,19 @@ func (k *kademlia) Store(key *entities.KademliaID, data string) error {
 	if candidates == nil {
 		candidates = &ContactCandidates{}
 	}
+	if err != nil {
+		return err
+	}
+
 	contactMe := k.me
 	contactMe.CalcDistance(key)
 	slog.Info("Adding myself", "[]Contact{contactMe}", []Contact{contactMe})
 	candidates.Append([]Contact{contactMe})
 	candidates.Sort()
-	if candidates.Len() > k_const {
-		candidates.PopShortList(k_const)
+	if candidates.Len() > K {
+		candidates.PopShortList(K)
 	}
 	slog.Info("Candidates are :", "candidates.contacts", candidates.contacts)
-
-	if err != nil {
-		return err
-	}
 
 	for i := range len(candidates.contacts) {
 		err := SendStore(k.me.ID, k.network, candidates.contacts[i], key, data)
@@ -722,13 +725,13 @@ func (k *kademlia) Ping(address entities.Address) (time.Duration, error) {
 	}
 	defer connection.Close()
 
-	requestUuid := uuid.New().String()
+	requestUUID := uuid.New().String()
 
 	pingMessage := generated.Message{
 		KademliaId: k.me.ID[:],
 		Payload: &generated.Message_Ping{
 			Ping: &generated.Ping{
-				RequestUuid: requestUuid,
+				RequestUuid: requestUUID,
 			},
 		},
 	}
@@ -753,7 +756,7 @@ func (k *kademlia) Ping(address entities.Address) (time.Duration, error) {
 		return 0, err
 	}
 
-	if requestUuid != pongMessage.RequestUuid {
+	if requestUUID != pongMessage.RequestUuid {
 		return 0, errors.New("invalid request uuid")
 	}
 
