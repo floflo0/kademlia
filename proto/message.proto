@@ -2,6 +2,7 @@ syntax = "proto3";
 
 option go_package = "proto/generated";
 
+import "contact.proto";
 import "ping.proto";
 import "find_node.proto";
 import "find_value.proto";
@@ -10,7 +11,7 @@ import "find_node_response.proto";
 import "find_value_response.proto";
 
 message Message {
-  bytes kademlia_id = 1;
+  Contact contact = 1;
   oneof payload {
     Ping ping = 2;
     FindNode find_node = 3;

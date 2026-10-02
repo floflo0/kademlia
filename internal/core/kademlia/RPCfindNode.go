@@ -2,7 +2,6 @@ package kademlia
 
 import (
 	"kademlia/internal/core/entities"
-	"kademlia/internal/core/ports"
 	"kademlia/proto/generated"
 	"log/slog"
 
@@ -18,26 +17,32 @@ type DoubleNode struct {
 	id      *entities.KademliaID
 }
 
-func SendFindNode(
-	requesterID *entities.KademliaID,
-	net ports.Network,
+func (k *kademlia) SendFindNode(
 	recipient Contact,
 	target *entities.KademliaID,
 ) (*RPCResponseNode, error) {
-	slog.Debug("Sending find node", "recipient ID", recipient.ID)
-	connection, errDial := net.Dial(recipient.Address)
+	slog.Debug(
+		"Sending FIND_NODE RPC",
+		"key",
+		target.String(),
+		"to",
+		recipient.Address,
+	)
+	connection, errDial := k.network.Dial(recipient.Address)
 	if errDial != nil {
 		slog.Debug("Dial")
 		return nil, errDial
 	}
 
 	findNodeMessage := generated.Message{
-		KademliaId: requesterID[:],
+		Contact: &generated.Contact{
+			KademliaId: k.me.ID[:],
+			Ip:         k.me.Address.IP,
+			Port:       int32(k.me.Address.Port),
+		},
 		Payload: &generated.Message_FindNode{
 			FindNode: &generated.FindNode{
-				TargetId:    target[:],
-				RequesterId: requesterID[:],
-				RecipientId: recipient.ID[:],
+				Key: target[:],
 			},
 		},
 	}

@@ -3,7 +3,5 @@ syntax = "proto3";
 option go_package = "proto/generated";
 
 message FindNode {
-  bytes target_id = 1;
-  bytes requester_id = 2;
-  bytes recipient_id = 3;
+  bytes key = 1;
 }
