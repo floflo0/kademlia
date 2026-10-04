@@ -17,6 +17,7 @@ func main() {
 
 	rootCmd := cli.NewRootCommand(os.Args[0], func(config cli.Config) error {
 		network := adapters.NewUDPNetworkAdapter()
+		dnsAdapter := adapters.NewDNSAdapter()
 
 		host := config.Host
 		if host == "" {
@@ -35,7 +36,7 @@ func main() {
 		)
 
 		go func() {
-			shell := shell.NewShell(kademlia)
+			shell := shell.NewShell(kademlia, dnsAdapter)
 			err := shell.Run()
 			if err != nil {
 				slog.Error("Failed to run the shell", "err", err)

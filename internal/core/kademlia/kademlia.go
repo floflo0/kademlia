@@ -1,6 +1,7 @@
 package kademlia
 
 import (
+	"crypto/ed25519"
 	"errors"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
@@ -32,6 +33,10 @@ type Kademlia interface {
 	GetStoredKeys() []entities.KademliaID
 	GetValue(key string) (*string, *string, error)
 	Quit() error
+
+	// Package Management (Part 2)
+	PublishPackage(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns DNSVerifier) (*VersionRecord, error)
+	InstallPackage(domain, packageName, version string) (string, string, error)
 }
 
 type kademlia struct {

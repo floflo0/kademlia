@@ -1,12 +1,19 @@
 package shell_test
 
 import (
+	"crypto/ed25519"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/kademlia"
 	"kademlia/internal/shell"
 	"testing"
 	"time"
 )
+
+type mockDNS struct{}
+
+func (m *mockDNS) GetPublicKey(domain string) (ed25519.PublicKey, error) {
+	return nil, nil
+}
 
 func newMockKademlia(t *testing.T) kademlia.Kademlia {
 	return kademlia.NewMockKademlia(
@@ -43,7 +50,7 @@ func newMockKademlia(t *testing.T) kademlia.Kademlia {
 
 func TestNewShell(t *testing.T) {
 	kademlia := newMockKademlia(t)
-	shell := shell.NewShell(kademlia)
+	shell := shell.NewShell(kademlia, &mockDNS{})
 	if shell == nil {
 		t.Fatalf("NewShell() returned nil")
 	}
@@ -51,7 +58,7 @@ func TestNewShell(t *testing.T) {
 
 func TestShell_Run_NotATTY(t *testing.T) {
 	kademlia := newMockKademlia(t)
-	shell := shell.NewShell(kademlia)
+	shell := shell.NewShell(kademlia, &mockDNS{})
 
 	err := shell.Run()
 	if err != nil {
