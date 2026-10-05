@@ -1,6 +1,7 @@
 package kademlia
 
 import (
+	"crypto/ed25519"
 	"kademlia/internal/core/entities"
 	"time"
 )
@@ -61,4 +62,19 @@ func (k *mockKademlia) GetValue(key string) (*string, *string, error) {
 
 func (k *mockKademlia) Quit() error {
 	return k.quitFunction()
+}
+
+func (m *mockKademlia) PublishPackage(
+	domain string,
+	packageName string,
+	version string,
+	blob string,
+	privKey ed25519.PrivateKey,
+	dns DNSVerifier,
+) (*VersionRecord, error) {
+	return nil, nil
+}
+
+func (m *mockKademlia) InstallPackage(domain, packageName, version string) (string, string, error) {
+	return "", "", nil
 }
