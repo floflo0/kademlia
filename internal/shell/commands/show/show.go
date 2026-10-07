@@ -1,48 +1,115 @@
 package show
 
 import (
+	"crypto/ed25519"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"log/slog"
+	"os"
+	"strings"
+
 	"kademlia/internal/core/kademlia"
 	"kademlia/internal/shell/commands"
-	"log/slog"
 
 	"github.com/spf13/cobra"
 )
 
+// DNSVerifier defines the interface required to resolve domain public keys locally.
+type DNSVerifier interface {
+	GetPublicKey(domain string) (ed25519.PublicKey, error)
+}
+
 type showCommand struct {
 	kademlia kademlia.Kademlia
+	dns      DNSVerifier
 	out      io.Writer
 }
 
-func NewShowCommand(kademlia kademlia.Kademlia, out io.Writer) commands.Command {
-	return &showCommand{
+// NewShowCommand constructs a show command supporting flexible parameter injection (DNSVerifier, io.Writer).
+func NewShowCommand(kademlia kademlia.Kademlia, opts ...interface{}) commands.Command {
+	sc := &showCommand{
 		kademlia: kademlia,
-		out:      out,
+		out:      os.Stdout,
 	}
+
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case DNSVerifier:
+			sc.dns = v
+		case io.Writer:
+			sc.out = v
+		}
+	}
+
+	return sc
 }
 
 func (c *showCommand) buildCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:                   "show [-h] rt|ds",
-		Short:                 "Show debug information",
-		Args:                  cobra.NoArgs,
-		Example:               "show rt",
+		Use:                   "show [-h] rt|ds|dns|DOMAIN:PACKAGE",
+		Short:                 "Show debug information, DNS info, or package version chain.",
+		Args:                  cobra.ArbitraryArgs,
 		DisableFlagsInUseLine: true,
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 0 {
-				panic("unreachable")
+			if len(args) == 0 {
+				return fmt.Errorf("missing subcommand")
 			}
-			return fmt.Errorf("missing subcommand")
+
+			// Handle 'show dns DOMAIN'
+			if len(args) == 2 && args[0] == "dns" {
+				domain := args[1]
+				slog.Debug("Running show dns command", "domain", domain)
+				if c.dns == nil {
+					return fmt.Errorf("DNS verifier not configured")
+				}
+				pubKey, err := c.dns.GetPublicKey(domain)
+				if err != nil {
+					return fmt.Errorf("failed to resolve DNS public key for %s: %w", domain, err)
+				}
+				fmt.Fprintf(c.out, "Domain: %s\nPublic Key (hex): %s\n", domain, hex.EncodeToString(pubKey))
+				return nil
+			}
+
+			// Handle 'show DOMAIN:PACKAGE' (Package version chain inspection)
+			if len(args) == 1 && strings.Contains(args[0], ":") {
+				parts := strings.Split(args[0], ":")
+				if len(parts) == 2 {
+					domain := parts[0]
+					pkg := parts[1]
+
+					chain, err := c.kademlia.GetVersionChain(domain, pkg)
+					if err != nil {
+						return fmt.Errorf("failed to fetch version chain: %w", err)
+					}
+
+					if len(chain) == 0 {
+						fmt.Fprintf(c.out, "No version chain found for %s:%s\n", domain, pkg)
+						return nil
+					}
+
+					fmt.Fprintf(c.out, "Version chain for %s:%s:\n", domain, pkg)
+					for i, record := range chain {
+						recHash, _ := record.Hash()
+						fmt.Fprintf(c.out, "[%d] Version: %s | Hash: %s | PrevHash: %s\n",
+							i+1, record.Version, recHash, record.PrevVersionRecordHash)
+					}
+					return nil
+				}
+			}
+
+			return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
 		},
 	}
+
 	command.AddCommand(
 		showRoutingTableCommand(c.kademlia, c.out),
 		showDataStoreCommand(c.kademlia, c.out),
 	)
+
 	command.SetOut(c.out)
 	return command
 }
@@ -57,10 +124,7 @@ func (c *showCommand) GetCompletions() []commands.Completion {
 	return commands.GetCompletions(c.buildCommand())
 }
 
-func showRoutingTableCommand(
-	kademlia kademlia.Kademlia,
-	out io.Writer,
-) *cobra.Command {
+func showRoutingTableCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.Command {
 	return &cobra.Command{
 		Use:                   "rt [-h]",
 		Short:                 "Show the routing table",
@@ -94,10 +158,7 @@ func showRoutingTableCommand(
 	}
 }
 
-func showDataStoreCommand(
-	kademlia kademlia.Kademlia,
-	out io.Writer,
-) *cobra.Command {
+func showDataStoreCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.Command {
 	return &cobra.Command{
 		Use:                   "ds [-h]",
 		Short:                 "Show the data store keys",

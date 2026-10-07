@@ -71,10 +71,21 @@ func (m *mockKademlia) PublishPackage(
 	blob string,
 	privKey ed25519.PrivateKey,
 	dns DNSVerifier,
+	force bool,
+	explicitPrev string,
 ) (*VersionRecord, error) {
-	return nil, nil
+	return &VersionRecord{
+		DomainName:  domain,
+		PackageName: packageName,
+		Version:     version,
+		BlobHash:    blob,
+	}, nil
 }
 
 func (m *mockKademlia) InstallPackage(domain, packageName, version string) (string, string, error) {
-	return "", "", nil
+	return "mock-blob-content", version, nil
+}
+
+func (m *mockKademlia) GetVersionChain(domain, packageName string) ([]*VersionRecord, error) {
+	return []*VersionRecord{}, nil
 }

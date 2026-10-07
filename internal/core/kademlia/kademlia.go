@@ -35,8 +35,9 @@ type Kademlia interface {
 	Quit() error
 
 	// Package Management (Part 2)
-	PublishPackage(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns DNSVerifier) (*VersionRecord, error)
+	PublishPackage(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns DNSVerifier, force bool, explicitPrev string) (*VersionRecord, error)
 	InstallPackage(domain, packageName, version string) (string, string, error)
+	GetVersionChain(domain, packageName string) ([]*VersionRecord, error)
 }
 
 type kademlia struct {
