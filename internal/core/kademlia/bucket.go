@@ -2,11 +2,12 @@ package kademlia
 
 import (
 	"container/list"
+	"kademlia/config"
 	"kademlia/internal/core/entities"
 	"sync"
 )
 
-const bucketSize = K
+const BUCKET_SIZE = config.K
 
 type Bucket struct {
 	list *list.List
@@ -38,7 +39,7 @@ func (b *Bucket) AddContact(contact Contact) *Contact {
 
 	if element == nil {
 		bucketLen := b.list.Len()
-		if bucketLen < bucketSize {
+		if bucketLen < BUCKET_SIZE {
 			b.list.PushFront(contact)
 		} else {
 			return &contact

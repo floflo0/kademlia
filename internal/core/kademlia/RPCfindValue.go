@@ -1,6 +1,7 @@
 package kademlia
 
 import (
+	"kademlia/config"
 	"kademlia/internal/core/entities"
 	"kademlia/proto/generated"
 	"log/slog"
@@ -58,7 +59,7 @@ func (k *kademlia) SendFindValue(
 		return nil, errSend
 	}
 
-	recv, errRcv := connection.Receive(1000)
+	recv, errRcv := connection.Receive(config.NetworkTimeoutMiliseconds)
 	if errRcv != nil {
 		return nil, errRcv
 	}
