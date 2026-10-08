@@ -29,6 +29,7 @@ func (k *kademlia) SendFindValue(
 		slog.Debug("Dial")
 		return nil, errDial
 	}
+	defer connection.Close()
 
 	findValueMessage := generated.Message{
 		Contact: &generated.Contact{

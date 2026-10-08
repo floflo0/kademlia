@@ -33,6 +33,7 @@ func (k *kademlia) SendFindNode(
 		slog.Debug("Dial")
 		return nil, errDial
 	}
+	defer connection.Close()
 
 	findNodeMessage := generated.Message{
 		Contact: &generated.Contact{
