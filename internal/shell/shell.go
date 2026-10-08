@@ -35,7 +35,7 @@ func NewShell(kademlia kademlia.Kademlia, dns kademlia.DNSVerifier) *Shell {
 			"ping":    ping.NewPingCommand(kademlia),
 			"publish": publish.NewPublishCommand(kademlia, dns, os.Stdout),
 			"put":     put.NewPutCommand(kademlia, os.Stdout),
-			"show":    show.NewShowCommand(kademlia, os.Stdout),
+			"show":    show.NewShowCommand(kademlia, dns, os.Stdout),
 		},
 		kademlia: kademlia,
 	}
