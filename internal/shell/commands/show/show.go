@@ -26,30 +26,23 @@ type showCommand struct {
 	out      io.Writer
 }
 
-// NewShowCommand constructs a show command supporting flexible parameter injection (DNSVerifier, io.Writer).
-func NewShowCommand(kademlia kademlia.Kademlia, opts ...interface{}) commands.Command {
-	sc := &showCommand{
+// NewShowCommand constructs a show command with explicit typed parameters for compile-time type safety.
+func NewShowCommand(kademlia kademlia.Kademlia, dns DNSVerifier, out io.Writer) commands.Command {
+	if out == nil {
+		out = os.Stdout
+	}
+	return &showCommand{
 		kademlia: kademlia,
-		out:      os.Stdout,
+		dns:      dns,
+		out:      out,
 	}
-
-	for _, opt := range opts {
-		switch v := opt.(type) {
-		case DNSVerifier:
-			sc.dns = v
-		case io.Writer:
-			sc.out = v
-		}
-	}
-
-	return sc
 }
 
 func (c *showCommand) buildCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:                   "show [-h] rt|ds|dns|DOMAIN:PACKAGE",
-		Short:                 "Show debug information, DNS info, or package version chain.",
-		Args:                  cobra.ArbitraryArgs,
+		Use:                    "show [-h] rt|ds|dns|DOMAIN:PACKAGE",
+		Short:                  "Show debug information, DNS info, or package version chain.",
+		Args:                   cobra.ArbitraryArgs,
 		DisableFlagsInUseLine: true,
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,
@@ -57,21 +50,6 @@ func (c *showCommand) buildCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return fmt.Errorf("missing subcommand")
-			}
-
-			// Handle 'show dns DOMAIN'
-			if len(args) == 2 && args[0] == "dns" {
-				domain := args[1]
-				slog.Debug("Running show dns command", "domain", domain)
-				if c.dns == nil {
-					return fmt.Errorf("DNS verifier not configured")
-				}
-				pubKey, err := c.dns.GetPublicKey(domain)
-				if err != nil {
-					return fmt.Errorf("failed to resolve DNS public key for %s: %w", domain, err)
-				}
-				fmt.Fprintf(c.out, "Domain: %s\nPublic Key (hex): %s\n", domain, hex.EncodeToString(pubKey))
-				return nil
 			}
 
 			// Handle 'show DOMAIN:PACKAGE' (Package version chain inspection)
@@ -108,6 +86,7 @@ func (c *showCommand) buildCommand() *cobra.Command {
 	command.AddCommand(
 		showRoutingTableCommand(c.kademlia, c.out),
 		showDataStoreCommand(c.kademlia, c.out),
+		showDNSCommand(c.dns, c.out),
 	)
 
 	command.SetOut(c.out)
@@ -126,9 +105,9 @@ func (c *showCommand) GetCompletions() []commands.Completion {
 
 func showRoutingTableCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.Command {
 	return &cobra.Command{
-		Use:                   "rt [-h]",
-		Short:                 "Show the routing table",
-		Args:                  cobra.NoArgs,
+		Use:                    "rt [-h]",
+		Short:                  "Show the routing table",
+		Args:                   cobra.NoArgs,
 		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, args []string) error {
 			slog.Debug("Running show rt command")
@@ -160,15 +139,37 @@ func showRoutingTableCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.C
 
 func showDataStoreCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.Command {
 	return &cobra.Command{
-		Use:                   "ds [-h]",
-		Short:                 "Show the data store keys",
-		Args:                  cobra.NoArgs,
+		Use:                    "ds [-h]",
+		Short:                  "Show the data store keys",
+		Args:                   cobra.NoArgs,
 		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, args []string) error {
 			slog.Debug("Running show ds command")
 			for _, key := range kademlia.GetStoredKeys() {
 				fmt.Fprintln(out, key.String())
 			}
+			return nil
+		},
+	}
+}
+
+func showDNSCommand(dns DNSVerifier, out io.Writer) *cobra.Command {
+	return &cobra.Command{
+		Use:                    "dns DOMAIN",
+		Short:                  "Show DNS public key for a domain",
+		Args:                   cobra.ExactArgs(1),
+		DisableFlagsInUseLine: true,
+		RunE: func(command *cobra.Command, args []string) error {
+			domain := args[0]
+			slog.Debug("Running show dns command", "domain", domain)
+			if dns == nil {
+				return fmt.Errorf("DNS verifier not configured")
+			}
+			pubKey, err := dns.GetPublicKey(domain)
+			if err != nil {
+				return fmt.Errorf("failed to resolve DNS public key for %s: %w", domain, err)
+			}
+			fmt.Fprintf(out, "Domain: %s\nPublic Key (hex): %s\n", domain, hex.EncodeToString(pubKey))
 			return nil
 		},
 	}

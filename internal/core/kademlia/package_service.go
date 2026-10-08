@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"kademlia/internal/core/entities"
 )
 
@@ -35,7 +36,7 @@ func (k *kademlia) storeData(data string) (entities.KademliaID, error) {
 
 // PublishPackage handles signing, validating, storing the blob, storing the VersionRecord,
 // and updating the LatestPointer in the Kademlia network.
-// Soporta los flags --force (force) y --prev (explicitPrev).
+// Supports --force (force) and --prev (explicitPrev) flags.
 func (k *kademlia) PublishPackage(
 	domain string,
 	packageName string,
@@ -63,20 +64,26 @@ func (k *kademlia) PublishPackage(
 	var currentHead *VersionRecord
 	var prevRecordHash string
 
+	latestPtr, _ := k.findLatestPointer(domain, packageName)
+
 	if explicitPrev != "" {
-		// Si el usuario especificó --prev=VERSION
+		// If the user specified --prev=VERSION
 		prevHead, err := k.findVersionRecordByVersion(domain, packageName, explicitPrev)
 		if err == nil && prevHead != nil {
 			currentHead = prevHead
 			prevHash, _ := prevHead.Hash()
 			prevRecordHash = prevHash
+
+			// Refuse to fork history if explicitPrev is not the current head record, unless force is true
+			if latestPtr != nil && prevRecordHash != latestPtr.VersionRecordHash && !force {
+				return nil, fmt.Errorf("cannot fork package history from version %s without --force", explicitPrev)
+			}
 		} else if !force {
 			return nil, fmt.Errorf("specified previous version %s not found", explicitPrev)
 		}
 	} else {
-		// Comportamiento por defecto: usar la versión 'latest' actual como anterior
-		latestPtr, err := k.findLatestPointer(domain, packageName)
-		if err == nil && latestPtr != nil {
+		// Default behavior: use current 'latest' version as the previous record
+		if latestPtr != nil {
 			prevRecordHash = latestPtr.VersionRecordHash
 			if headRec, err := k.findVersionRecordByHash(prevRecordHash); err == nil {
 				currentHead = headRec
@@ -95,7 +102,7 @@ func (k *kademlia) PublishPackage(
 	}
 	newRecord.Sign(privKey)
 
-	// 5. Enforce business validation rules (OMITIR SI force == true)
+	// 5. Enforce business validation rules (skip if force == true)
 	if !force {
 		if err := ValidateNewVersion(newRecord, currentHead, pubKey); err != nil {
 			return nil, fmt.Errorf("package validation failed: %w", err)
@@ -227,7 +234,7 @@ func (k *kademlia) findBlobByHash(hashStr string) (string, error) {
 	return "", ErrPackageNotFound
 }
 
-// GetVersionChain recovers all the version's history in reverse orden
+// GetVersionChain recovers all the version history in reverse order
 func (k *kademlia) GetVersionChain(domain, packageName string) ([]*VersionRecord, error) {
 	latestPtr, err := k.findLatestPointer(domain, packageName)
 	if err != nil || latestPtr == nil {
@@ -251,7 +258,7 @@ func (k *kademlia) GetVersionChain(domain, packageName string) ([]*VersionRecord
 	return chain, nil
 }
 
-// Aux helper to find a VersionRecord by its specific version number
+// Auxiliary helper to find a VersionRecord by its specific version number
 func (k *kademlia) findVersionRecordByVersion(domain, packageName, version string) (*VersionRecord, error) {
 	if k.dataStore == nil {
 		return nil, ErrPackageNotFound
