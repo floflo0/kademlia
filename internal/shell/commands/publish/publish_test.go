@@ -5,13 +5,14 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
-	"kademlia/internal/core/entities"
-	"kademlia/internal/core/kademlia"
-	"kademlia/internal/shell/commands/publish"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"kademlia/internal/core/entities"
+	"kademlia/internal/core/kademlia"
+	"kademlia/internal/shell/commands/publish"
 )
 
 type mockDNS struct {
@@ -87,7 +88,7 @@ func TestPublishCommand_Execute_InvalidKeyHex(t *testing.T) {
 	var mockOut bytes.Buffer
 
 	cmd := publish.NewPublishCommand(mockK, dns, &mockOut)
-	args := []string{"-d", "example.com", "-p", "pkg", "-v", "1.0.0", "-f", filePath, "-k", "invalid_hex"}
+	args := []string{"-k", "invalid_hex", "example.com:pkg:1.0.0", filePath}
 	err := cmd.Execute(args)
 	if err == nil {
 		t.Fatal("Expected error for invalid key hex, got nil")
@@ -102,10 +103,9 @@ func TestPublishCommand_Execute_Success(t *testing.T) {
 	dns := &mockDNS{pubKey: pubKey}
 	mockK := newMockKademlia(t)
 
-	// Inject PublishPackage implementation into mock instance
 	mockKWithPublish := &mockKademliaWithPublish{
 		Kademlia: mockK,
-		publishFunc: func(domain, packageName, version, blob string, key ed25519.PrivateKey, dnsVerifier kademlia.DNSVerifier) (*kademlia.VersionRecord, error) {
+		publishFunc: func(domain, packageName, version, blob string, key ed25519.PrivateKey, dnsVerifier kademlia.DNSVerifier, force bool, explicitPrev string) (*kademlia.VersionRecord, error) {
 			return &kademlia.VersionRecord{
 				Tag:         "version-record",
 				DomainName:  domain,
@@ -119,7 +119,7 @@ func TestPublishCommand_Execute_Success(t *testing.T) {
 	var mockOut bytes.Buffer
 	cmd := publish.NewPublishCommand(mockKWithPublish, dns, &mockOut)
 
-	args := []string{"-d", "example.com", "-p", "my-lib", "-v", "1.0.0", "-f", filePath, "-k", privHex}
+	args := []string{"-k", privHex, "example.com:my-lib:1.0.0", filePath}
 	err := cmd.Execute(args)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -132,13 +132,13 @@ func TestPublishCommand_Execute_Success(t *testing.T) {
 
 type mockKademliaWithPublish struct {
 	kademlia.Kademlia
-	publishFunc func(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns kademlia.DNSVerifier) (*kademlia.VersionRecord, error)
+	publishFunc func(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns kademlia.DNSVerifier, force bool, explicitPrev string) (*kademlia.VersionRecord, error)
 	installFunc func(domain, packageName, version string) (string, string, error)
 }
 
-func (m *mockKademliaWithPublish) PublishPackage(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns kademlia.DNSVerifier) (*kademlia.VersionRecord, error) {
+func (m *mockKademliaWithPublish) PublishPackage(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns kademlia.DNSVerifier, force bool, explicitPrev string) (*kademlia.VersionRecord, error) {
 	if m.publishFunc != nil {
-		return m.publishFunc(domain, packageName, version, blob, privKey, dns)
+		return m.publishFunc(domain, packageName, version, blob, privKey, dns, force, explicitPrev)
 	}
 	return nil, fmt.Errorf("not implemented")
 }

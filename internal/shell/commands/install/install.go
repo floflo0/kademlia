@@ -3,10 +3,12 @@ package install
 import (
 	"fmt"
 	"io"
-	"kademlia/internal/core/kademlia"
-	"kademlia/internal/shell/commands"
 	"log/slog"
 	"os"
+	"strings"
+
+	"kademlia/internal/core/kademlia"
+	"kademlia/internal/shell/commands"
 
 	"github.com/spf13/cobra"
 )
@@ -32,16 +34,43 @@ func (c *installCommand) buildCommand() *cobra.Command {
 	)
 
 	command := &cobra.Command{
-		Use:   "install -d domain -p package [-v version] [-o output_file]",
+		Use:   "install DOMAIN:PACKAGE:VERSION",
 		Short: "Fetch and install a package version from the DHT registry.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// 1. Parse positional argument if provided (DOMAIN:PACKAGE:VERSION or DOMAIN:PACKAGE)
+			if len(args) >= 1 {
+				parts := strings.Split(args[0], ":")
+				if len(parts) == 3 {
+					domain = parts[0]
+					pkgName = parts[1]
+					version = parts[2]
+				} else if len(parts) == 2 {
+					domain = parts[0]
+					pkgName = parts[1]
+					if version == "" {
+						version = "latest"
+					}
+				}
+			}
+
+			// 2. Fallback parameter validation
+			if domain == "" || pkgName == "" {
+				return fmt.Errorf("missing parameters. Usage: install DOMAIN:PACKAGE:VERSION or install -d DOMAIN -p PACKAGE [-v VERSION]")
+			}
+
+			if version == "" {
+				version = "latest"
+			}
+
 			slog.Debug("Running install command", "domain", domain, "package", pkgName, "version", version)
 
+			// 3. Fetch package blob and resolved version from Kademlia
 			blobContent, resolvedVersion, err := c.kademlia.InstallPackage(domain, pkgName, version)
 			if err != nil {
 				return err
 			}
 
+			// 4. Write to output file if requested, or print to stdout
 			if outputPath != "" {
 				if err := os.WriteFile(outputPath, []byte(blobContent), 0644); err != nil {
 					return fmt.Errorf("failed to save output file: %w", err)
@@ -55,13 +84,10 @@ func (c *installCommand) buildCommand() *cobra.Command {
 		},
 	}
 
-	command.Flags().StringVarP(&domain, "domain", "d", "", "Domain owner name")
-	command.Flags().StringVarP(&pkgName, "package", "p", "", "Package name")
+	command.Flags().StringVarP(&domain, "domain", "d", "", "Domain owner name (optional if positional argument is used)")
+	command.Flags().StringVarP(&pkgName, "package", "p", "", "Package name (optional if positional argument is used)")
 	command.Flags().StringVarP(&version, "version", "v", "latest", "Version string (default: latest)")
 	command.Flags().StringVarP(&outputPath, "out", "o", "", "File path to save the installed binary")
-
-	_ = command.MarkFlagRequired("domain")
-	_ = command.MarkFlagRequired("package")
 
 	command.SetOut(c.out)
 	return command

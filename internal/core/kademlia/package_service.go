@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"kademlia/internal/core/entities"
 )
 
@@ -35,6 +36,7 @@ func (k *kademlia) storeData(data string) (entities.KademliaID, error) {
 
 // PublishPackage handles signing, validating, storing the blob, storing the VersionRecord,
 // and updating the LatestPointer in the Kademlia network.
+// Supports --force (force) and --prev (explicitPrev) flags.
 func (k *kademlia) PublishPackage(
 	domain string,
 	packageName string,
@@ -42,6 +44,8 @@ func (k *kademlia) PublishPackage(
 	blob string,
 	privKey ed25519.PrivateKey,
 	dns DNSVerifier,
+	force bool,
+	explicitPrev string,
 ) (*VersionRecord, error) {
 	// 1. Verify domain ownership via DNS
 	pubKey, err := dns.GetPublicKey(domain)
@@ -56,15 +60,34 @@ func (k *kademlia) PublishPackage(
 	}
 	blobHash := blobID.String()
 
-	// 3. Find current LatestPointer (if any exists)
+	// 3. Determine PrevVersionRecordHash and currentHead
 	var currentHead *VersionRecord
 	var prevRecordHash string
 
-	latestPtr, err := k.findLatestPointer(domain, packageName)
-	if err == nil && latestPtr != nil {
-		prevRecordHash = latestPtr.VersionRecordHash
-		if headRec, err := k.findVersionRecordByHash(prevRecordHash); err == nil {
-			currentHead = headRec
+	latestPtr, _ := k.findLatestPointer(domain, packageName)
+
+	if explicitPrev != "" {
+		// If the user specified --prev=VERSION
+		prevHead, err := k.findVersionRecordByVersion(domain, packageName, explicitPrev)
+		if err == nil && prevHead != nil {
+			currentHead = prevHead
+			prevHash, _ := prevHead.Hash()
+			prevRecordHash = prevHash
+
+			// Refuse to fork history if explicitPrev is not the current head record, unless force is true
+			if latestPtr != nil && prevRecordHash != latestPtr.VersionRecordHash && !force {
+				return nil, fmt.Errorf("cannot fork package history from version %s without --force", explicitPrev)
+			}
+		} else if !force {
+			return nil, fmt.Errorf("specified previous version %s not found", explicitPrev)
+		}
+	} else {
+		// Default behavior: use current 'latest' version as the previous record
+		if latestPtr != nil {
+			prevRecordHash = latestPtr.VersionRecordHash
+			if headRec, err := k.findVersionRecordByHash(prevRecordHash); err == nil {
+				currentHead = headRec
+			}
 		}
 	}
 
@@ -79,9 +102,11 @@ func (k *kademlia) PublishPackage(
 	}
 	newRecord.Sign(privKey)
 
-	// 5. Enforce business validation rules
-	if err := ValidateNewVersion(newRecord, currentHead, pubKey); err != nil {
-		return nil, fmt.Errorf("package validation failed: %w", err)
+	// 5. Enforce business validation rules (skip if force == true)
+	if !force {
+		if err := ValidateNewVersion(newRecord, currentHead, pubKey); err != nil {
+			return nil, fmt.Errorf("package validation failed: %w", err)
+		}
 	}
 
 	// 6. Store VersionRecord in DHT
@@ -207,4 +232,48 @@ func (k *kademlia) findBlobByHash(hashStr string) (string, error) {
 		}
 	}
 	return "", ErrPackageNotFound
+}
+
+// GetVersionChain recovers all the version history in reverse order
+func (k *kademlia) GetVersionChain(domain, packageName string) ([]*VersionRecord, error) {
+	latestPtr, err := k.findLatestPointer(domain, packageName)
+	if err != nil || latestPtr == nil {
+		return nil, fmt.Errorf("%w: package %s:%s not found", ErrPackageNotFound, domain, packageName)
+	}
+
+	var chain []*VersionRecord
+	currentHash := latestPtr.VersionRecordHash
+	visited := make(map[string]bool) // to prevent infinite loops
+
+	for currentHash != "" && !visited[currentHash] {
+		visited[currentHash] = true
+		rec, err := k.findVersionRecordByHash(currentHash)
+		if err != nil || rec == nil {
+			break
+		}
+		chain = append(chain, rec)
+		currentHash = rec.PrevVersionRecordHash
+	}
+
+	return chain, nil
+}
+
+// Auxiliary helper to find a VersionRecord by its specific version number
+func (k *kademlia) findVersionRecordByVersion(domain, packageName, version string) (*VersionRecord, error) {
+	if k.dataStore == nil {
+		return nil, ErrPackageNotFound
+	}
+	for _, key := range k.dataStore.Keys() {
+		val, err := k.dataStore.Get(key)
+		if err != nil {
+			continue
+		}
+		var rec VersionRecord
+		if err := json.Unmarshal([]byte(val), &rec); err == nil && rec.Tag == "version-record" {
+			if rec.DomainName == domain && rec.PackageName == packageName && rec.Version == version {
+				return &rec, nil
+			}
+		}
+	}
+	return nil, ErrPackageNotFound
 }

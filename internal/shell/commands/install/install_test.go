@@ -5,13 +5,14 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"fmt"
-	"kademlia/internal/core/entities"
-	"kademlia/internal/core/kademlia"
-	"kademlia/internal/shell/commands/install"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"kademlia/internal/core/entities"
+	"kademlia/internal/core/kademlia"
+	"kademlia/internal/shell/commands/install"
 )
 
 func newMockKademlia(t *testing.T) kademlia.Kademlia {
@@ -52,7 +53,13 @@ type mockKademliaWithInstall struct {
 	installFunc func(domain, packageName, version string) (string, string, error)
 }
 
-func (m *mockKademliaWithInstall) PublishPackage(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns kademlia.DNSVerifier) (*kademlia.VersionRecord, error) {
+func (m *mockKademliaWithInstall) PublishPackage(
+	domain, packageName, version, blob string,
+	privKey ed25519.PrivateKey,
+	dns kademlia.DNSVerifier,
+	force bool,
+	explicitPrev string,
+) (*kademlia.VersionRecord, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
