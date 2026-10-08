@@ -1,10 +1,13 @@
 package kademlia
 
 import (
+	"fmt"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
 	"log/slog"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -52,16 +55,14 @@ func TestJoinProcedure(t *testing.T) {
 
 	expectedClosest := expectedRoutingTable.FindClosestContacts(node4.me.ID, 3)
 
-	slog.Info("First contact", "node4.firstContact", node4.firstContact)
-
 	go node01.Run(nil)
 	go node02.Run(nil)
 	go node0.Run(nil)
 	go node1.Run(nil)
 	go node2.Run(nil)
 	go node3.Run(nil)
+	time.Sleep(100 * time.Millisecond)
 	go node4.Run(&entities.Address{IP: "127.0.0.1", Port: 8002})
-	time.Sleep(5 * time.Millisecond)
 
 	node4.mux.RLock()
 	cond := len(node4.RoutingTable.FindClosestContacts(node4.me.ID, 3)) < 3
@@ -79,7 +80,11 @@ func TestJoinProcedure(t *testing.T) {
 
 	for i := range len(expectedClosest) {
 		if *testedRoutingTable[i].ID != *expectedClosest[i].ID {
-			t.Errorf("Expected candidate ID to be %v, got %v", *expectedClosest[i].ID, *testedRoutingTable[i].ID)
+			t.Fatalf(
+				"Expected candidate ID to be %q, got %q",
+				expectedClosest[i].ID.String(),
+				testedRoutingTable[i].ID.String(),
+			)
 		}
 	}
 
@@ -269,4 +274,121 @@ func TestStoreFunc(t *testing.T) {
 		_, err4 := node2.dataStore.Get(*key)
 		return err1 == nil && err2 == nil && err3 == nil && err4 == nil
 	}, 100*time.Millisecond, 5*time.Millisecond)
+}
+
+func Test1000Nodes(t *testing.T) {
+	network := adapters.NewMockNetworkAdapter(0.0)
+	numberNodes := 1000
+	nodes := make([]Kademlia, numberNodes)
+
+	for i := range numberNodes {
+		nodes[i] = NewKademlia(entities.Address{
+			IP:   "127.0.0.1",
+			Port: 8000 + i,
+		}, network)
+	}
+
+	go nodes[0].Run(nil)
+	time.Sleep(100 * time.Millisecond)
+
+	for i := 1; i < numberNodes; i++ {
+		go nodes[i].Run(&entities.Address{
+			IP:   "127.0.0.1",
+			Port: 8000,
+		})
+	}
+	t.Cleanup(func() {
+		for i := range numberNodes {
+			err := nodes[i].Quit()
+			if err != nil {
+				t.Errorf("Quit() returns unexpected error: %v", err)
+			}
+		}
+	})
+
+	timeout := time.After(20 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var ready atomic.Bool
+		ready.Store(true)
+
+		var waitGroup sync.WaitGroup
+		for i := range numberNodes {
+			waitGroup.Go(func() {
+				address := entities.Address{
+					IP:   "127.0.0.1",
+					Port: 8000 + i,
+				}
+				_, err := nodes[0].Ping(address)
+				if err != nil {
+					ready.Store(false)
+				}
+			})
+		}
+		waitGroup.Wait()
+
+		if ready.Load() {
+			break
+		}
+
+		select {
+		case <-timeout:
+			t.Fatal("timed out waiting for all nodes to start")
+		case <-ticker.C:
+		}
+	}
+
+	keys := make([]entities.KademliaID, numberNodes)
+	if !t.Run("put", func(t *testing.T) {
+		var waitGroup sync.WaitGroup
+		for i := range numberNodes {
+			waitGroup.Go(func() {
+				data := fmt.Sprintf("data %d", i)
+				key, err := nodes[i].Put(data)
+				if err != nil {
+					t.Errorf("Put(%q) returns unexpected error: %v", data, err)
+					return
+				}
+				keys[i] = *key
+			})
+		}
+		waitGroup.Wait()
+	}) {
+		return
+	}
+
+	if !t.Run("get", func(t *testing.T) {
+		var waitGroup sync.WaitGroup
+		for i := range numberNodes {
+			waitGroup.Go(func() {
+				j := numberNodes - 1 - i
+				key := keys[j].String()
+				data, _, err := nodes[i].GetValue(key)
+				if err != nil {
+					t.Errorf("Get(%q) returns unexpected error: %v", key, err)
+				}
+				expectedData := fmt.Sprintf("data %d", j)
+				if data == nil {
+					t.Errorf(
+						"Get(%q) returned nil data; want %q",
+						key,
+						expectedData,
+					)
+					return
+				}
+				if *data != expectedData {
+					t.Errorf(
+						"Get(%q) data = %q; want %q",
+						key,
+						*data,
+						expectedData,
+					)
+				}
+			})
+		}
+		waitGroup.Wait()
+	}) {
+		return
+	}
 }
