@@ -22,6 +22,7 @@ func (k *kademlia) SendStore(
 		slog.Debug("Dial")
 		return errDial
 	}
+	defer connection.Close()
 
 	if len([]byte(data)) > 1024 {
 		return ErrTooMuchData
