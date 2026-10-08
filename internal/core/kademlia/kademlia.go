@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const K = 10
+const K = 15
 const alpha = 3
 const b = 1
 const timeout = 1000 // ms
