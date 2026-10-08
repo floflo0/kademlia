@@ -40,9 +40,9 @@ func NewShowCommand(kademlia kademlia.Kademlia, dns DNSVerifier, out io.Writer) 
 
 func (c *showCommand) buildCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:                    "show [-h] rt|ds|dns|DOMAIN:PACKAGE",
-		Short:                  "Show debug information, DNS info, or package version chain.",
-		Args:                   cobra.ArbitraryArgs,
+		Use:                   "show [-h] rt|ds|dns|DOMAIN:PACKAGE",
+		Short:                 "Show debug information, DNS info, or package version chain.",
+		Args:                  cobra.ArbitraryArgs,
 		DisableFlagsInUseLine: true,
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,
@@ -105,9 +105,9 @@ func (c *showCommand) GetCompletions() []commands.Completion {
 
 func showRoutingTableCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.Command {
 	return &cobra.Command{
-		Use:                    "rt [-h]",
-		Short:                  "Show the routing table",
-		Args:                   cobra.NoArgs,
+		Use:                   "rt [-h]",
+		Short:                 "Show the routing table",
+		Args:                  cobra.NoArgs,
 		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, args []string) error {
 			slog.Debug("Running show rt command")
@@ -139,9 +139,9 @@ func showRoutingTableCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.C
 
 func showDataStoreCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.Command {
 	return &cobra.Command{
-		Use:                    "ds [-h]",
-		Short:                  "Show the data store keys",
-		Args:                   cobra.NoArgs,
+		Use:                   "ds [-h]",
+		Short:                 "Show the data store keys",
+		Args:                  cobra.NoArgs,
 		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, args []string) error {
 			slog.Debug("Running show ds command")
@@ -155,9 +155,9 @@ func showDataStoreCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.Comm
 
 func showDNSCommand(dns DNSVerifier, out io.Writer) *cobra.Command {
 	return &cobra.Command{
-		Use:                    "dns DOMAIN",
-		Short:                  "Show DNS public key for a domain",
-		Args:                   cobra.ExactArgs(1),
+		Use:                   "dns DOMAIN",
+		Short:                 "Show DNS public key for a domain",
+		Args:                  cobra.ExactArgs(1),
 		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, args []string) error {
 			domain := args[0]
