@@ -78,7 +78,7 @@ func TestBucketSizeLimit(t *testing.T) {
 	bucketIndex := rt.getBucketIndex(target)
 	bucketLen := rt.buckets[bucketIndex].Len()
 
-	if bucketLen > bucketSize {
-		t.Errorf("Bucket size exceeded limit! Expected <= %d, got %d", bucketSize, bucketLen)
+	if bucketLen > BUCKET_SIZE {
+		t.Errorf("Bucket size exceeded limit! Expected <= %d, got %d", BUCKET_SIZE, bucketLen)
 	}
 }
