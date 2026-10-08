@@ -3,7 +3,6 @@ package kademlia
 import (
 	"container/list"
 	"kademlia/internal/core/entities"
-	"log/slog"
 	"sync"
 )
 
@@ -42,7 +41,6 @@ func (b *Bucket) AddContact(contact Contact) *Contact {
 		if bucketLen < bucketSize {
 			b.list.PushFront(contact)
 		} else {
-			slog.Info("Bucket full", "bucket.list.Len() < bucketSize", bucketLen < bucketSize)
 			return &contact
 		}
 	} else {

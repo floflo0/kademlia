@@ -23,7 +23,7 @@ func (k *kademlia) SendFindValue(
 	recipient Contact,
 	target *entities.KademliaID,
 ) (*RPCResponseValue, error) {
-	slog.Debug("Sending find value", "recipient ID", recipient.ID)
+	slog.Debug("Sending find value", "recipient ID", recipient.ID.String())
 	connection, errDial := k.network.Dial(recipient.Address)
 	if errDial != nil {
 		slog.Debug("Dial")
@@ -58,7 +58,7 @@ func (k *kademlia) SendFindValue(
 		return nil, errSend
 	}
 
-	recv, errRcv := connection.Receive(500) //For the moment random value for timeout
+	recv, errRcv := connection.Receive(1000)
 	if errRcv != nil {
 		return nil, errRcv
 	}
@@ -71,11 +71,16 @@ func (k *kademlia) SendFindValue(
 
 	var response RPCResponseValue
 
+	var senderID entities.KademliaID
+	if msgRecv.Contact != nil && len(msgRecv.Contact.KademliaId) >= entities.KademliaIDLength {
+		copy(senderID[:], msgRecv.Contact.KademliaId)
+		response.sender = &senderID
+	}
+
 	valueRecv := msgRecv.GetFindValueResponse().GetValue()
 	if valueRecv != "" {
 		response.double = nil
 		response.value = &valueRecv
-		response.sender = (*entities.KademliaID)(msgRecv.Contact.KademliaId)
 		return &response, nil
 	}
 
@@ -97,7 +102,6 @@ func (k *kademlia) SendFindValue(
 	}
 	response.double = &doubleForResponse
 	response.value = &value
-	response.sender = (*entities.KademliaID)(msgRecv.Contact.KademliaId)
 
 	return &response, nil
 }
