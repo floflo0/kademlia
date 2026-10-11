@@ -17,9 +17,9 @@ import (
 )
 
 type publishCommand struct {
-	kademlia kademlia.Kademlia
-	dnsVerifier      ports.DNSVerifier
-	out      io.Writer
+	kademlia    kademlia.Kademlia
+	dnsVerifier ports.DNSVerifier
+	out         io.Writer
 }
 
 func NewPublishCommand(

@@ -65,15 +65,15 @@ func NewMockKademlia(
 	) ([]*VersionRecord, error),
 ) Kademlia {
 	return &mockKademlia{
-		runFunction:           runFunction,
-		pingFunction:          pingFunction,
-		putFunction:           putFunction,
-		getBucketsFunction:    getBucketsFunction,
-		getStoredKeysFunction: getStoredKeysFunction,
-		getValueFunction:      getValueFunction,
-		quitFunction:          quitFunction,
-		publishPackageFunction:publishPackageFunction,
-		installPackageFunction: installPackageFunction,
+		runFunction:             runFunction,
+		pingFunction:            pingFunction,
+		putFunction:             putFunction,
+		getBucketsFunction:      getBucketsFunction,
+		getStoredKeysFunction:   getStoredKeysFunction,
+		getValueFunction:        getValueFunction,
+		quitFunction:            quitFunction,
+		publishPackageFunction:  publishPackageFunction,
+		installPackageFunction:  installPackageFunction,
 		getVersionChainFunction: getVersionChainFunction,
 	}
 }

@@ -42,8 +42,8 @@ func NewShell(
 				dnsVerifier,
 				os.Stdout,
 			),
-			"put":     put.NewPutCommand(kademlia, os.Stdout),
-			"show":    show.NewShowCommand(kademlia, dnsVerifier, os.Stdout),
+			"put":  put.NewPutCommand(kademlia, os.Stdout),
+			"show": show.NewShowCommand(kademlia, dnsVerifier, os.Stdout),
 		},
 		kademlia: kademlia,
 	}
