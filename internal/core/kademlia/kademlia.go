@@ -72,7 +72,7 @@ func (k *kademlia) join(knownContact *entities.Address) error {
 	if err != nil {
 		return err
 	}
-	err = k.joinRefresh()
+	//err = k.joinRefresh()
 	return err
 }
 
