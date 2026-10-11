@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"kademlia/internal/core/entities"
+	"kademlia/internal/core/ports"
 )
 
 var (
@@ -43,12 +44,12 @@ func (k *kademlia) PublishPackage(
 	version string,
 	blob string,
 	privKey ed25519.PrivateKey,
-	dns DNSVerifier,
+	dnsVerifier ports.DNSVerifier,
 	force bool,
 	explicitPrev string,
 ) (*VersionRecord, error) {
 	// 1. Verify domain ownership via DNS
-	pubKey, err := dns.GetPublicKey(domain)
+	pubKey, err := dnsVerifier.GetPublicKey(domain)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify domain ownership via DNS: %w", err)
 	}

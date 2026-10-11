@@ -1,8 +1,10 @@
 package kademlia_test
 
 import (
+	"crypto/ed25519"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/core/ports"
 	"testing"
 	"time"
 )
@@ -36,6 +38,34 @@ func TestNewMockKademlia(t *testing.T) {
 		func() error {
 			t.Fatal("Quit should not be called")
 			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
 		},
 	)
 	if kademlia == nil {

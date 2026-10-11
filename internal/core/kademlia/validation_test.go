@@ -3,6 +3,7 @@ package kademlia
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"kademlia/internal/adapters"
 	"testing"
 )
 
@@ -13,8 +14,8 @@ func TestValidateNewVersion_SuccessAndForkDetection(t *testing.T) {
 		t.Fatalf("failed to generate keys: %v", err)
 	}
 
-	dns := NewMockDNSVerifier()
-	dns.RegisterDomain("example.com", pubKey)
+	dnsVerifier := adapters.NewMockDNSVerifierAdapter()
+	dnsVerifier.RegisterDomain("example.com", pubKey)
 
 	// 2. Initial release v1.0.0
 	v1 := &VersionRecord{

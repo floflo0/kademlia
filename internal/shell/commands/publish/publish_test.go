@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,6 +11,7 @@ import (
 
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/core/ports"
 	"kademlia/internal/shell/commands/publish"
 )
 
@@ -27,7 +27,19 @@ func (m *mockDNS) GetPublicKey(domain string) (ed25519.PublicKey, error) {
 	return m.pubKey, nil
 }
 
-func newMockKademlia(t *testing.T) kademlia.Kademlia {
+func newMockKademlia(
+	t *testing.T,
+	publishPackageFunction func(
+		domain string,
+		packageName string,
+		version string,
+		blob string,
+		privKey ed25519.PrivateKey,
+		dnsVerifier ports.DNSVerifier,
+		force bool,
+		explicitPrev string,
+	) (*kademlia.VersionRecord, error),
+) kademlia.Kademlia {
 	return kademlia.NewMockKademlia(
 		func(firstContact *entities.Address) error {
 			t.Fatal("Run should not be called")
@@ -57,6 +69,22 @@ func newMockKademlia(t *testing.T) kademlia.Kademlia {
 			t.Fatal("Quit should not be called")
 			return nil
 		},
+		publishPackageFunction,
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
 	)
 }
 
@@ -70,12 +98,28 @@ func createTestFile(t *testing.T) string {
 }
 
 func TestPublishCommand_Execute_MissingFlags(t *testing.T) {
-	mockK := newMockKademlia(t)
+	args := []string{}
+	mockKademlia := newMockKademlia(
+		t,
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatalf("Execute(%v) called PublishPackage", args)
+			return nil, nil
+		},
+	)
 	dns := &mockDNS{}
 	var mockOut bytes.Buffer
 
-	cmd := publish.NewPublishCommand(mockK, dns, &mockOut)
-	err := cmd.Execute([]string{})
+	command := publish.NewPublishCommand(mockKademlia, dns, &mockOut)
+	err := command.Execute(args)
 	if err == nil {
 		t.Fatal("Expected error for missing required flags, got nil")
 	}
@@ -83,12 +127,27 @@ func TestPublishCommand_Execute_MissingFlags(t *testing.T) {
 
 func TestPublishCommand_Execute_InvalidKeyHex(t *testing.T) {
 	filePath := createTestFile(t)
-	mockK := newMockKademlia(t)
+	args := []string{"-k", "invalid_hex", "example.com:pkg:1.0.0", filePath}
+	mockKademlia := newMockKademlia(
+		t,
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatalf("Execute(%v) called PublishPackage", args)
+			return nil, nil
+		},
+	)
 	dns := &mockDNS{}
 	var mockOut bytes.Buffer
 
-	cmd := publish.NewPublishCommand(mockK, dns, &mockOut)
-	args := []string{"-k", "invalid_hex", "example.com:pkg:1.0.0", filePath}
+	cmd := publish.NewPublishCommand(mockKademlia, dns, &mockOut)
 	err := cmd.Execute(args)
 	if err == nil {
 		t.Fatal("Expected error for invalid key hex, got nil")
@@ -101,11 +160,19 @@ func TestPublishCommand_Execute_Success(t *testing.T) {
 	privHex := hex.EncodeToString(privKey)
 
 	dns := &mockDNS{pubKey: pubKey}
-	mockK := newMockKademlia(t)
-
-	mockKWithPublish := &mockKademliaWithPublish{
-		Kademlia: mockK,
-		publishFunc: func(domain, packageName, version, blob string, key ed25519.PrivateKey, dnsVerifier kademlia.DNSVerifier, force bool, explicitPrev string) (*kademlia.VersionRecord, error) {
+	args := []string{"-k", privHex, "example.com:my-lib:1.0.0", filePath}
+	mockKademlia := newMockKademlia(
+		t,
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
 			return &kademlia.VersionRecord{
 				Tag:         "version-record",
 				DomainName:  domain,
@@ -114,13 +181,12 @@ func TestPublishCommand_Execute_Success(t *testing.T) {
 				BlobHash:    "dummyhash",
 			}, nil
 		},
-	}
+	)
 
 	var mockOut bytes.Buffer
-	cmd := publish.NewPublishCommand(mockKWithPublish, dns, &mockOut)
+	command := publish.NewPublishCommand(mockKademlia, dns, &mockOut)
 
-	args := []string{"-k", privHex, "example.com:my-lib:1.0.0", filePath}
-	err := cmd.Execute(args)
+	err := command.Execute(args)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -128,24 +194,4 @@ func TestPublishCommand_Execute_Success(t *testing.T) {
 	if !bytes.Contains(mockOut.Bytes(), []byte("Package successfully published!")) {
 		t.Fatalf("Unexpected output: %s", mockOut.String())
 	}
-}
-
-type mockKademliaWithPublish struct {
-	kademlia.Kademlia
-	publishFunc func(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns kademlia.DNSVerifier, force bool, explicitPrev string) (*kademlia.VersionRecord, error)
-	installFunc func(domain, packageName, version string) (string, string, error)
-}
-
-func (m *mockKademliaWithPublish) PublishPackage(domain, packageName, version, blob string, privKey ed25519.PrivateKey, dns kademlia.DNSVerifier, force bool, explicitPrev string) (*kademlia.VersionRecord, error) {
-	if m.publishFunc != nil {
-		return m.publishFunc(domain, packageName, version, blob, privKey, dns, force, explicitPrev)
-	}
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockKademliaWithPublish) InstallPackage(domain, packageName, version string) (string, string, error) {
-	if m.installFunc != nil {
-		return m.installFunc(domain, packageName, version)
-	}
-	return "", "", fmt.Errorf("not implemented")
 }

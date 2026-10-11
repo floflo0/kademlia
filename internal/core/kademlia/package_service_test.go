@@ -21,7 +21,7 @@ func TestPackageService_PublishAndInstall(t *testing.T) {
 		t.Fatalf("failed to generate keys: %v", err)
 	}
 
-	dns := NewMockDNSVerifier()
+	dns := adapters.NewMockDNSVerifierAdapter()
 	dns.RegisterDomain("example.com", pubKey)
 
 	domain := "example.com"
@@ -83,7 +83,7 @@ func TestPublishPackage_WithForceAndPrev(t *testing.T) {
 		t.Fatalf("failed to generate keys: %v", err)
 	}
 
-	dns := NewMockDNSVerifier()
+	dns := adapters.NewMockDNSVerifierAdapter()
 	dns.RegisterDomain("example.com", pubKey)
 
 	domain := "example.com"

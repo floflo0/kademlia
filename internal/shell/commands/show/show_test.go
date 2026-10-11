@@ -2,8 +2,11 @@ package show_test
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/core/ports"
 	"kademlia/internal/shell/commands"
 	"kademlia/internal/shell/commands/show"
 	"reflect"
@@ -11,8 +14,6 @@ import (
 	"testing"
 	"time"
 )
-
-var mockDNS show.DNSVerifier
 
 func newMockKademlia(
 	t *testing.T,
@@ -42,6 +43,34 @@ func newMockKademlia(
 			t.Fatal("Quit should not be called")
 			return nil
 		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
 	)
 }
 
@@ -58,7 +87,8 @@ func TestNewShowCommand(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	if command == nil {
 		t.Fatalf("NewShowCommand() returned nil")
 	}
@@ -78,7 +108,8 @@ func TestShowCommand_Execute_NoArguments(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	err := command.Execute(args)
 	if err == nil || !strings.Contains(err.Error(), "missing subcommand") {
 		t.Fatalf("Execute(%v) err = %v; want missing subcommand", args, err)
@@ -99,7 +130,8 @@ func TestShowCommand_Execute_UnknownSubcommand(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	err := command.Execute(args)
 	if err == nil || !strings.Contains(err.Error(), "unknown command") {
 		t.Fatalf("Execute(%v) err = %v; want unknown command", args, err)
@@ -120,7 +152,8 @@ func TestShowCommand_Execute_RT_TooManyArgs(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	err := command.Execute(args)
 	if err == nil {
 		t.Fatalf("Execute(%v) expected error, got nil", args)
@@ -142,7 +175,8 @@ func TestShowCommand_Execute_RT_Empty(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	err := command.Execute(args)
 	if err != nil {
 		t.Fatalf("Execute(%v) returned unexpected error: %v", args, err)
@@ -191,7 +225,8 @@ func TestShowCommand_Execute_RT_Foo(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	err := command.Execute(args)
 	if err != nil {
 		t.Fatalf("Execute(%v) returned unexpected error: %v", args, err)
@@ -228,7 +263,8 @@ func TestShowCommand_Execute_DS_TooManyArgs(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	err := command.Execute(args)
 	if err == nil {
 		t.Fatalf("Execute(%v) expected error, got nil", args)
@@ -250,7 +286,8 @@ func TestShowCommand_Execute_DS_Empty(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	err := command.Execute(args)
 	if err != nil {
 		t.Fatalf("Execute(%v) returned unexpected error: %v", args, err)
@@ -291,7 +328,8 @@ func TestShowCommand_Execute_DS_WithKeys(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	err = command.Execute(args)
 	if err != nil {
 		t.Fatalf("Execute(%v) returned unexpected error: %v", args, err)
@@ -325,7 +363,8 @@ func TestShowCommand_GetCompletions(t *testing.T) {
 		},
 	)
 	var mockOut bytes.Buffer
-	command := show.NewShowCommand(mockKademlia, mockDNS, &mockOut)
+	mockDNSVerifier := adapters.NewMockDNSVerifierAdapter()
+	command := show.NewShowCommand(mockKademlia, mockDNSVerifier, &mockOut)
 	completions := command.GetCompletions()
 	expectedCompletions := []commands.Completion{
 		{

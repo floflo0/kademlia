@@ -1,7 +1,6 @@
 package show
 
 import (
-	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -10,24 +9,24 @@ import (
 	"strings"
 
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/core/ports"
 	"kademlia/internal/shell/commands"
 
 	"github.com/spf13/cobra"
 )
 
-// DNSVerifier defines the interface required to resolve domain public keys locally.
-type DNSVerifier interface {
-	GetPublicKey(domain string) (ed25519.PublicKey, error)
-}
-
 type showCommand struct {
 	kademlia kademlia.Kademlia
-	dns      DNSVerifier
+	dns      ports.DNSVerifier
 	out      io.Writer
 }
 
 // NewShowCommand constructs a show command with explicit typed parameters for compile-time type safety.
-func NewShowCommand(kademlia kademlia.Kademlia, dns DNSVerifier, out io.Writer) commands.Command {
+func NewShowCommand(
+	kademlia kademlia.Kademlia,
+	dns ports.DNSVerifier,
+	out io.Writer,
+) commands.Command {
 	if out == nil {
 		out = os.Stdout
 	}
@@ -153,7 +152,7 @@ func showDataStoreCommand(kademlia kademlia.Kademlia, out io.Writer) *cobra.Comm
 	}
 }
 
-func showDNSCommand(dns DNSVerifier, out io.Writer) *cobra.Command {
+func showDNSCommand(dns ports.DNSVerifier, out io.Writer) *cobra.Command {
 	return &cobra.Command{
 		Use:                   "dns DOMAIN",
 		Short:                 "Show DNS public key for a domain",

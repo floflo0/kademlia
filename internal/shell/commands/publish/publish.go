@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/core/ports"
 	"kademlia/internal/shell/commands"
 
 	"github.com/spf13/cobra"
@@ -17,15 +18,19 @@ import (
 
 type publishCommand struct {
 	kademlia kademlia.Kademlia
-	dns      kademlia.DNSVerifier
+	dnsVerifier      ports.DNSVerifier
 	out      io.Writer
 }
 
-func NewPublishCommand(kademlia kademlia.Kademlia, dns kademlia.DNSVerifier, out io.Writer) commands.Command {
+func NewPublishCommand(
+	kademlia kademlia.Kademlia,
+	dnsVerifier ports.DNSVerifier,
+	out io.Writer,
+) commands.Command {
 	return &publishCommand{
-		kademlia: kademlia,
-		dns:      dns,
-		out:      out,
+		kademlia:    kademlia,
+		dnsVerifier: dnsVerifier,
+		out:         out,
 	}
 }
 
@@ -84,7 +89,7 @@ func (c *publishCommand) buildCommand() *cobra.Command {
 			privKey := ed25519.PrivateKey(privKeyBytes)
 
 			// 5. Invoke package service with force and prev parameters
-			record, err := c.kademlia.PublishPackage(domain, pkgName, version, string(fileContent), privKey, c.dns, force, prev)
+			record, err := c.kademlia.PublishPackage(domain, pkgName, version, string(fileContent), privKey, c.dnsVerifier, force, prev)
 			if err != nil {
 				return err
 			}

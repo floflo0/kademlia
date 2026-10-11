@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/core/ports"
 	"kademlia/internal/logging"
 	"kademlia/internal/shell/commands"
 	"kademlia/internal/shell/commands/exit"
@@ -26,16 +27,23 @@ type Shell struct {
 	kademlia kademlia.Kademlia
 }
 
-func NewShell(kademlia kademlia.Kademlia, dns kademlia.DNSVerifier) *Shell {
+func NewShell(
+	kademlia kademlia.Kademlia,
+	dnsVerifier ports.DNSVerifier,
+) *Shell {
 	return &Shell{
 		commands: map[string]commands.Command{
 			"exit":    exit.NewExitCommand(kademlia),
 			"get":     get.NewGetCommand(kademlia, os.Stdout),
 			"install": install.NewInstallCommand(kademlia, os.Stdout),
 			"ping":    ping.NewPingCommand(kademlia),
-			"publish": publish.NewPublishCommand(kademlia, dns, os.Stdout),
+			"publish": publish.NewPublishCommand(
+				kademlia,
+				dnsVerifier,
+				os.Stdout,
+			),
 			"put":     put.NewPutCommand(kademlia, os.Stdout),
-			"show":    show.NewShowCommand(kademlia, dns, os.Stdout),
+			"show":    show.NewShowCommand(kademlia, dnsVerifier, os.Stdout),
 		},
 		kademlia: kademlia,
 	}

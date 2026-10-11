@@ -3,17 +3,37 @@ package kademlia
 import (
 	"crypto/ed25519"
 	"kademlia/internal/core/entities"
+	"kademlia/internal/core/ports"
 	"time"
 )
 
 type mockKademlia struct {
-	runFunction           func(firstContact *entities.Address) error
-	putFunction           func(data string) (*entities.KademliaID, error)
-	pingFunction          func(address entities.Address) (time.Duration, error)
-	getBucketsFunction    func() []*Bucket
-	getStoredKeysFunction func() []entities.KademliaID
-	getValueFunction      func(key string) (*string, *string, error)
-	quitFunction          func() error
+	runFunction            func(firstContact *entities.Address) error
+	putFunction            func(data string) (*entities.KademliaID, error)
+	pingFunction           func(address entities.Address) (time.Duration, error)
+	getBucketsFunction     func() []*Bucket
+	getStoredKeysFunction  func() []entities.KademliaID
+	getValueFunction       func(key string) (*string, *string, error)
+	quitFunction           func() error
+	publishPackageFunction func(
+		domain string,
+		packageName string,
+		version string,
+		blob string,
+		privKey ed25519.PrivateKey,
+		dnsVerifier ports.DNSVerifier,
+		force bool,
+		explicitPrev string,
+	) (*VersionRecord, error)
+	installPackageFunction func(
+		domain string,
+		packageName string,
+		version string,
+	) (string, string, error)
+	getVersionChainFunction func(
+		domain string,
+		packageName string,
+	) ([]*VersionRecord, error)
 }
 
 func NewMockKademlia(
@@ -24,6 +44,25 @@ func NewMockKademlia(
 	getStoredKeysFunction func() []entities.KademliaID,
 	getValueFunction func(key string) (*string, *string, error),
 	quitFunction func() error,
+	publishPackageFunction func(
+		domain string,
+		packageName string,
+		version string,
+		blob string,
+		privKey ed25519.PrivateKey,
+		dnsVerifier ports.DNSVerifier,
+		force bool,
+		explicitPrev string,
+	) (*VersionRecord, error),
+	installPackageFunction func(
+		domain string,
+		packageName string,
+		version string,
+	) (string, string, error),
+	getVersionChainFunction func(
+		domain string,
+		packageName string,
+	) ([]*VersionRecord, error),
 ) Kademlia {
 	return &mockKademlia{
 		runFunction:           runFunction,
@@ -33,6 +72,9 @@ func NewMockKademlia(
 		getStoredKeysFunction: getStoredKeysFunction,
 		getValueFunction:      getValueFunction,
 		quitFunction:          quitFunction,
+		publishPackageFunction:publishPackageFunction,
+		installPackageFunction: installPackageFunction,
+		getVersionChainFunction: getVersionChainFunction,
 	}
 }
 
@@ -64,28 +106,39 @@ func (k *mockKademlia) Quit() error {
 	return k.quitFunction()
 }
 
-func (m *mockKademlia) PublishPackage(
+func (k *mockKademlia) PublishPackage(
 	domain string,
 	packageName string,
 	version string,
 	blob string,
 	privKey ed25519.PrivateKey,
-	dns DNSVerifier,
+	dnsVerifier ports.DNSVerifier,
 	force bool,
 	explicitPrev string,
 ) (*VersionRecord, error) {
-	return &VersionRecord{
-		DomainName:  domain,
-		PackageName: packageName,
-		Version:     version,
-		BlobHash:    blob,
-	}, nil
+	return k.publishPackageFunction(
+		domain,
+		packageName,
+		version,
+		blob,
+		privKey,
+		dnsVerifier,
+		force,
+		explicitPrev,
+	)
 }
 
-func (m *mockKademlia) InstallPackage(domain, packageName, version string) (string, string, error) {
-	return "mock-blob-content", version, nil
+func (k *mockKademlia) InstallPackage(
+	domain string,
+	packageName string,
+	version string,
+) (string, string, error) {
+	return k.installPackageFunction(domain, packageName, version)
 }
 
-func (m *mockKademlia) GetVersionChain(domain, packageName string) ([]*VersionRecord, error) {
-	return []*VersionRecord{}, nil
+func (k *mockKademlia) GetVersionChain(
+	domain string,
+	packageName string,
+) ([]*VersionRecord, error) {
+	return k.getVersionChainFunction(domain, packageName)
 }

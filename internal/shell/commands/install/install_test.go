@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,10 +11,18 @@ import (
 
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/kademlia"
+	"kademlia/internal/core/ports"
 	"kademlia/internal/shell/commands/install"
 )
 
-func newMockKademlia(t *testing.T) kademlia.Kademlia {
+func newMockKademlia(
+	t *testing.T,
+	installPackageFunction func(
+		domain string,
+		packageName string,
+		version string,
+	) (string, string, error),
+) kademlia.Kademlia {
 	return kademlia.NewMockKademlia(
 		func(firstContact *entities.Address) error {
 			t.Fatal("Run should not be called")
@@ -45,56 +52,69 @@ func newMockKademlia(t *testing.T) kademlia.Kademlia {
 			t.Fatal("Quit should not be called")
 			return nil
 		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		installPackageFunction,
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
 	)
 }
 
-type mockKademliaWithInstall struct {
-	kademlia.Kademlia
-	installFunc func(domain, packageName, version string) (string, string, error)
-}
-
-func (m *mockKademliaWithInstall) PublishPackage(
-	domain, packageName, version, blob string,
-	privKey ed25519.PrivateKey,
-	dns kademlia.DNSVerifier,
-	force bool,
-	explicitPrev string,
-) (*kademlia.VersionRecord, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockKademliaWithInstall) InstallPackage(domain, packageName, version string) (string, string, error) {
-	if m.installFunc != nil {
-		return m.installFunc(domain, packageName, version)
-	}
-	return "", "", fmt.Errorf("not implemented")
-}
-
 func TestInstallCommand_Execute_MissingFlags(t *testing.T) {
-	mockK := newMockKademlia(t)
+	args := []string{}
+	mockKademlia := newMockKademlia(
+		t,
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatalf("Execute(%v) called InstallPackage", args)
+			return "", "", nil
+		},
+	)
 	var mockOut bytes.Buffer
 
-	cmd := install.NewInstallCommand(mockK, &mockOut)
-	err := cmd.Execute([]string{})
+	command := install.NewInstallCommand(mockKademlia, &mockOut)
+	err := command.Execute(args)
 	if err == nil {
 		t.Fatal("Expected error for missing required flags, got nil")
 	}
 }
 
 func TestInstallCommand_Execute_Success_ConsoleOutput(t *testing.T) {
-	mockK := newMockKademlia(t)
-	mockKWithInstall := &mockKademliaWithInstall{
-		Kademlia: mockK,
-		installFunc: func(domain, packageName, version string) (string, string, error) {
+	mockKademlia := newMockKademlia(
+		t,
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
 			return "binary_data_here", "1.0.0", nil
 		},
-	}
+	)
 
 	var mockOut bytes.Buffer
-	cmd := install.NewInstallCommand(mockKWithInstall, &mockOut)
+	command := install.NewInstallCommand(mockKademlia, &mockOut)
 
 	args := []string{"-d", "example.com", "-p", "my-lib", "-v", "1.0.0"}
-	err := cmd.Execute(args)
+	err := command.Execute(args)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -109,19 +129,22 @@ func TestInstallCommand_Execute_Success_FileOutput(t *testing.T) {
 	outDir := t.TempDir()
 	outFile := filepath.Join(outDir, "installed.bin")
 
-	mockK := newMockKademlia(t)
-	mockKWithInstall := &mockKademliaWithInstall{
-		Kademlia: mockK,
-		installFunc: func(domain, packageName, version string) (string, string, error) {
+	mockKademlia := newMockKademlia(
+		t,
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
 			return "binary_data_here", "1.0.0", nil
 		},
-	}
+	)
 
 	var mockOut bytes.Buffer
-	cmd := install.NewInstallCommand(mockKWithInstall, &mockOut)
+	command := install.NewInstallCommand(mockKademlia, &mockOut)
 
 	args := []string{"-d", "example.com", "-p", "my-lib", "-o", outFile}
-	err := cmd.Execute(args)
+	err := command.Execute(args)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -133,20 +156,23 @@ func TestInstallCommand_Execute_Success_FileOutput(t *testing.T) {
 }
 
 func TestInstallCommand_Execute_PackageNotFound(t *testing.T) {
-	mockK := newMockKademlia(t)
 	expectedErr := errors.New("package not found")
-	mockKWithInstall := &mockKademliaWithInstall{
-		Kademlia: mockK,
-		installFunc: func(domain, packageName, version string) (string, string, error) {
+	mockKademlia := newMockKademlia(
+		t,
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
 			return "", "", expectedErr
 		},
-	}
+	)
 
 	var mockOut bytes.Buffer
-	cmd := install.NewInstallCommand(mockKWithInstall, &mockOut)
+	command := install.NewInstallCommand(mockKademlia, &mockOut)
 
 	args := []string{"-d", "example.com", "-p", "nonexistent"}
-	err := cmd.Execute(args)
+	err := command.Execute(args)
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("Expected error %v, got %v", expectedErr, err)
 	}
