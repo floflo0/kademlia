@@ -97,6 +97,96 @@ func TestJoinProcedure(t *testing.T) {
 	node4.Quit()
 }
 
+func TestJoinRefresh(t *testing.T) {
+	t.Run("NoNeighbors_ShouldReturnNilEarly", func(t *testing.T) {
+		net := adapters.NewMockNetworkAdapter(0.0)
+		node := createTestNode(8100, net)
+
+		// La table de routage est vide au départ
+		err := node.joinRefresh()
+		if err != nil {
+			t.Fatalf("Expected nil error when table is empty, got %v", err)
+		}
+	})
+
+	t.Run("SkipBucketContainingNeighborOnly", func(t *testing.T) {
+		net := adapters.NewMockNetworkAdapter(0.0)
+		node0 := createTestNode(8101, net)
+		node1 := createTestNode(8102, net)
+
+		// On ajoute seulement le voisin principal dans la table
+		node0.RoutingTable.AddContact(node1.me)
+
+		// Étant donné que le seul bucket non vide contient neighbor[0],
+		// la boucle doit ignorer ce bucket (slices.Contains == true) et terminer sans erreur.
+		err := node0.joinRefresh()
+		if err != nil {
+			t.Fatalf("Expected nil error when only neighbor is present, got %v", err)
+		}
+	})
+
+	t.Run("RefreshBucketsWithOtherContacts", func(t *testing.T) {
+		net := adapters.NewMockNetworkAdapter(0.0)
+
+		node0 := createTestNode(8103, net)
+		node1 := createTestNode(8104, net)
+		node10 := createTestNode(8105, net)
+		node2 := createTestNode(8106, net) // Nœud distant
+
+		// 1. node1 connaît node2 (distant)
+		node1.RoutingTable.AddContact(node2.me)
+
+		// 2. node0 connaît uniquement node1
+		node0.RoutingTable.AddContact(node1.me)
+		node0.RoutingTable.AddContact(node10.me)
+
+		// 3. Lancement du réseau
+		go node0.Run(nil)
+		go node1.Run(nil)
+		go node10.Run(nil)
+		go node2.Run(nil)
+
+		time.Sleep(50 * time.Millisecond)
+
+		// Vérification AVANT refresh : node0 ne doit PAS encore connaître node2
+		contactsBefore := node0.RoutingTable.FindClosestContacts(node2.me.ID, 10)
+		for _, c := range contactsBefore {
+			if *c.ID == *node2.me.ID {
+				t.Fatalf("node0 ne devrait pas connaître node2 avant le joinRefresh")
+			}
+		}
+
+		// 4. Exécution explicite du joinRefresh sur node0
+		err := node0.joinRefresh()
+		if err != nil {
+			t.Fatalf("joinRefresh a échoué : %v", err)
+		}
+
+		// Laisser un court instant pour que les goroutines/lookups mettent à jour la table
+		time.Sleep(50 * time.Millisecond)
+
+		// 5. Vérification APRÈS refresh : node0 DOIT maintenant connaître node2
+		contactsAfter := node0.RoutingTable.FindClosestContacts(node2.me.ID, 10)
+		found := false
+		for _, c := range contactsAfter {
+			if *c.ID == *node2.me.ID {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			t.Fatalf("Expected node0 to discover node2 after joinRefresh, but it was not found in RoutingTable")
+		}
+
+		// Nettoyage
+		node0.Quit()
+		node1.Quit()
+		node10.Quit()
+		node2.Quit()
+	})
+}
+
 // TestNewKademlia verifies that a new Kademlia instance is properly initialized
 func TestNewKademlia(t *testing.T) {
 	node := createTestNode(8000, adapters.NewMockNetworkAdapter(0.0))

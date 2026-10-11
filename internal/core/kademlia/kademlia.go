@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"crypto/ed25519"
+	"crypto/rand"
 	"errors"
 	"kademlia/config"
 	"kademlia/internal/adapters"
@@ -68,7 +69,59 @@ func (k *kademlia) join(knownContact *entities.Address) error {
 		*knownContact,
 	))
 	_, err := k.LookupContact(k.me.ID)
+	if err != nil {
+		return err
+	}
+	err = k.joinRefresh()
 	return err
+}
+
+func (k *kademlia) joinRefresh() error {
+	neighbor := k.RoutingTable.FindClosestContacts(k.me.ID, 1)
+	if len(neighbor) == 0 {
+		return nil
+	}
+	for i, bucket := range k.RoutingTable.getBuckets() {
+		var bucketContactsID []entities.KademliaID
+		for _, contact := range bucket.GetContacts() {
+			bucketContactsID = append(bucketContactsID, *contact.ID)
+		}
+		if bucket.Len() == 0 || slices.Contains(bucketContactsID, *neighbor[0].ID) {
+			continue
+		}
+		var idBytes entities.KademliaID
+		copy(idBytes[:], k.me.ID[:])
+
+		byteIdx := i / 8
+		bitOffset := 7 - (i % 8)
+		idBytes[byteIdx] ^= (1 << bitOffset)
+
+		if bitOffset > 0 {
+			var randByte [1]byte
+			_, err := rand.Read(randByte[:])
+			if err != nil {
+				slog.Info("Failed to create random byte")
+			}
+
+			mask := byte((1 << bitOffset) - 1)
+			idBytes[byteIdx] = (idBytes[byteIdx] & ^mask) | (randByte[0] & mask)
+		}
+
+		if byteIdx+1 < entities.KademliaIDLength {
+			_, err := rand.Read(idBytes[byteIdx+1:])
+			if err != nil {
+				slog.Info("Failed to create random byte")
+			}
+		}
+
+		slog.Info("Doing a lookup")
+		_, err := k.LookupContact(&idBytes)
+		if err != nil {
+			slog.Info("Bucket failed to refresh")
+		}
+	}
+
+	return nil
 }
 
 func (k *kademlia) Run(firstContact *entities.Address) error {
