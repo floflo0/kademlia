@@ -73,120 +73,662 @@ func TestNewMockKademlia(t *testing.T) {
 	}
 }
 
-// func TestMockKademlia_Run_NilFunction(t *testing.T) {
-// 	mockKademlia := &kademlia.MockKademlia{}
-// 	err := mockKademlia.Run(nil)
-// 	if err != nil {
-// 		t.Fatalf("Run() returned unexpected error: %v", err)
-// 	}
-// }
-//
-// func TestMockKademlia_Run_CallsFunction(t *testing.T) {
-// 	called := false
-// 	mockKademlia := &kademlia.MockKademlia{
-// 		RunFunction: func(firstContact *entities.Address) error {
-// 			called = true
-// 			return nil
-// 		},
-// 	}
-// 	err := mockKademlia.Run(nil)
-// 	if err != nil {
-// 		t.Fatalf("Run() returned unexpected error: %v", err)
-// 	}
-// 	if !called {
-// 		t.Fatal("Run() didn't call RunFunction")
-// 	}
-// }
-//
-// func TestMockKademlia_Run_ReturnsError(t *testing.T) {
-// 	called := false
-// 	expectedError := errors.New("test error")
-// 	mockKademlia := &kademlia.MockKademlia{
-// 		RunFunction: func(firstContact *entities.Address) error {
-// 			called = true
-// 			return expectedError
-// 		},
-// 	}
-// 	err := mockKademlia.Run(nil)
-// 	if !errors.Is(err, expectedError) {
-// 		t.Fatalf("Run() err = %v; want %v", err, expectedError)
-// 	}
-// 	if !called {
-// 		t.Fatal("Run() didn't call RunFunction")
-// 	}
-// }
-//
-// func TestMockKademlia_Ping_NilFunction(t *testing.T) {
-// 	mockKademlia := &kademlia.MockKademlia{}
-// 	address := entities.Address{IP: "127.0.0.1", Port: 8080}
-//
-// 	elapsedTime, err := mockKademlia.Ping(address)
-// 	if err != nil {
-// 		t.Fatalf(
-// 			"Ping(%v) with nil PingFunction returned unexpected error: %v",
-// 			address,
-// 			err,
-// 		)
-// 	}
-// 	expectedElapsedTime := time.Duration(0)
-// 	if elapsedTime != expectedElapsedTime {
-// 		t.Fatalf(
-// 			"Ping(%v) with nil PingFunction returned elapsedTime = %v; want %v",
-// 			address,
-// 			elapsedTime,
-// 			expectedElapsedTime,
-// 		)
-// 	}
-// }
-//
-// func TestMockKademlia_Ping_CallsFunction(t *testing.T) {
-// 	called := false
-// 	var gotAddress entities.Address
-// 	expectedElapsedTime := 5 * time.Millisecond
-// 	mockKademlia := &kademlia.MockKademlia{
-// 		PingFunction: func(address entities.Address) (time.Duration, error) {
-// 			called = true
-// 			gotAddress = address
-// 			return expectedElapsedTime, nil
-// 		},
-// 	}
-// 	address := entities.Address{IP: "127.0.0.1", Port: 8080}
-//
-// 	elapsedTime, err := mockKademlia.Ping(address)
-// 	if err != nil {
-// 		t.Fatalf("Ping(%v) returned unexpected error: %v", address, err)
-// 	}
-// 	if !called {
-// 		t.Fatalf("Ping(%v) didn't call PingFunction", address)
-// 	}
-// 	if gotAddress != address {
-// 		t.Fatalf(
-// 			"PingFunction() called with address = %v; want %v",
-// 			gotAddress,
-// 			address,
-// 		)
-// 	}
-// 	if elapsedTime != expectedElapsedTime {
-// 		t.Fatalf(
-// 			"Ping(%v) elapsedTime = %v; want %v",
-// 			address,
-// 			elapsedTime,
-// 			expectedElapsedTime,
-// 		)
-// 	}
-// }
-//
-// func TestMockKademlia_Ping_ReturnsError(t *testing.T) {
-// 	expectedError := errors.New("test error")
-// 	mock := &kademlia.MockKademlia{
-// 		PingFunction: func(address entities.Address) (time.Duration, error) {
-// 			return 0, expectedError
-// 		},
-// 	}
-// 	address := entities.Address{IP: "127.0.0.1", Port: 8080}
-//
-// 	_, err := mock.Ping(address)
-// 	if !errors.Is(err, expectedError) {
-// 		t.Fatalf("Ping(%v) err = %v; want %v", address, err, expectedError)
-// 	}
-// }
+func TestNewMockKademlia_Run(t *testing.T) {
+	runCalled := false
+	kademlia := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			runCalled = true
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			t.Fatal("Ping should not be called")
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			t.Fatal("GetBucketsFunction should not be called")
+			return []*kademlia.Bucket{}
+		},
+		func() []entities.KademliaID {
+			t.Fatal("GetStoredKeysFunction should not be called")
+			return []entities.KademliaID{}
+		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValueFunction should not be called")
+			return nil, nil, nil
+		},
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
+	)
+	kademlia.Run(nil)
+	if !runCalled {
+		t.Fatalf("Run() didn't call the run function")
+	}
+}
+
+func TestNewMockKademlia_Ping(t *testing.T) {
+	pingCalled := false
+	kademlia := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			t.Fatal("Run should not be called")
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			pingCalled = true
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			t.Fatal("GetBuckets should not be called")
+			return nil
+		},
+		func() []entities.KademliaID {
+			t.Fatal("GetStoredKeys should not be called")
+			return nil
+		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValue should not be called")
+			return nil, nil, nil
+		},
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
+	)
+	kademlia.Ping(entities.Address{})
+	if !pingCalled {
+		t.Fatalf("Ping() didn't call the ping function")
+	}
+}
+
+func TestNewMockKademlia_Put(t *testing.T) {
+	putCalled := false
+	kademila := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			t.Fatal("Run should not be called")
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			t.Fatal("Ping should not be called")
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			putCalled = true
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			t.Fatal("GetBuckets should not be called")
+			return nil
+		},
+		func() []entities.KademliaID {
+			t.Fatal("GetStoredKeys should not be called")
+			return nil
+		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValue should not be called")
+			return nil, nil, nil
+		},
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
+	)
+	kademila.Put("")
+	if !putCalled {
+		t.Fatalf("Put() didn't call the put function")
+	}
+}
+
+func TestNewMockKademlia_GetBuckets(t *testing.T) {
+	getBucketsCalled := false
+	kademlia := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			t.Fatal("Run should not be called")
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			t.Fatal("Ping should not be called")
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			getBucketsCalled = true
+			return nil
+		},
+		func() []entities.KademliaID {
+			t.Fatal("GetStoredKeys should not be called")
+			return nil
+		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValue should not be called")
+			return nil, nil, nil
+		},
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
+	)
+	kademlia.GetBuckets()
+	if !getBucketsCalled {
+		t.Fatalf("GetBuckets() didn't call the getBuckets function")
+	}
+}
+
+func TestNewMockKademlia_GetStoredKeys(t *testing.T) {
+	getStoredKeysCalled := false
+	kademlia := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			t.Fatal("Run should not be called")
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			t.Fatal("Ping should not be called")
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			t.Fatal("GetBuckets should not be called")
+			return nil
+		},
+		func() []entities.KademliaID {
+			getStoredKeysCalled = true
+			return nil
+		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValue should not be called")
+			return nil, nil, nil
+		},
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
+	)
+	kademlia.GetStoredKeys()
+	if !getStoredKeysCalled {
+		t.Fatalf("GetStoredKeys() didn't call the getStoredKeys function")
+	}
+}
+
+func TestNewMockKademlia_GetValue(t *testing.T) {
+	getValueCalled := false
+	kademlia := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			t.Fatal("Run should not be called")
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			t.Fatal("Ping should not be called")
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			t.Fatal("GetBuckets should not be called")
+			return nil
+		},
+		func() []entities.KademliaID {
+			t.Fatal("GetStoredKeys should not be called")
+			return nil
+		},
+		func(string) (*string, *string, error) {
+			getValueCalled = true
+			return nil, nil, nil
+		},
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
+	)
+	kademlia.GetValue("")
+	if !getValueCalled {
+		t.Fatalf("GetValue() didn't call the getValue function")
+	}
+}
+
+func TestNewMockKademlia_Quit(t *testing.T) {
+	quitCalled := false
+	kademlia := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			t.Fatal("Run should not be called")
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			t.Fatal("Ping should not be called")
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			t.Fatal("GetBuckets should not be called")
+			return nil
+		},
+		func() []entities.KademliaID {
+			t.Fatal("GetStoredKeys should not be called")
+			return nil
+		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValue should not be called")
+			return nil, nil, nil
+		},
+		func() error {
+			quitCalled = true
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
+	)
+	kademlia.Quit()
+	if !quitCalled {
+		t.Fatalf("Quit() didn't call the quit function")
+	}
+}
+
+func TestNewMockKademlia_PublishPackage(t *testing.T) {
+	publishPackageCalled := false
+	kademlia := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			t.Fatal("Run should not be called")
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			t.Fatal("Ping should not be called")
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			t.Fatal("GetBuckets should not be called")
+			return nil
+		},
+		func() []entities.KademliaID {
+			t.Fatal("GetStoredKeys should not be called")
+			return nil
+		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValue should not be called")
+			return nil, nil, nil
+		},
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			publishPackageCalled = true
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
+	)
+	kademlia.PublishPackage("", "", "", "", nil, nil, false, "")
+	if !publishPackageCalled {
+		t.Fatalf("PublishPackage() didn't call the publishPackage function")
+	}
+}
+
+func TestNewMockKademlia_InstallPackage(t *testing.T) {
+	installPackageCalled := false
+	kademlia := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			t.Fatal("Run should not be called")
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			t.Fatal("Ping should not be called")
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			t.Fatal("GetBuckets should not be called")
+			return nil
+		},
+		func() []entities.KademliaID {
+			t.Fatal("GetStoredKeys should not be called")
+			return nil
+		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValue should not be called")
+			return nil, nil, nil
+		},
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			installPackageCalled = true
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			t.Fatal("GetVersionChain should not be called")
+			return nil, nil
+		},
+	)
+	kademlia.InstallPackage("", "", "")
+	if !installPackageCalled {
+		t.Fatalf("InstallPackage() didn't call the installPackage function")
+	}
+}
+
+func TestNewMockKademlia_GetVersionChain(t *testing.T) {
+	getVersionChainCalled := false
+	kademlia := kademlia.NewMockKademlia(
+		func(firstContact *entities.Address) error {
+			t.Fatal("Run should not be called")
+			return nil
+		},
+		func(address entities.Address) (time.Duration, error) {
+			t.Fatal("Ping should not be called")
+			return 0, nil
+		},
+		func(value string) (*entities.KademliaID, error) {
+			t.Fatal("Put should not be called")
+			return nil, nil
+		},
+		func() []*kademlia.Bucket {
+			t.Fatal("GetBuckets should not be called")
+			return nil
+		},
+		func() []entities.KademliaID {
+			t.Fatal("GetStoredKeys should not be called")
+			return nil
+		},
+		func(string) (*string, *string, error) {
+			t.Fatal("GetValue should not be called")
+			return nil, nil, nil
+		},
+		func() error {
+			t.Fatal("Quit should not be called")
+			return nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+			blob string,
+			privKey ed25519.PrivateKey,
+			dnsVerifier ports.DNSVerifier,
+			force bool,
+			explicitPrev string,
+		) (*kademlia.VersionRecord, error) {
+			t.Fatal("PublishPackage should not be called")
+			return nil, nil
+		},
+		func(
+			domain string,
+			packageName string,
+			version string,
+		) (string, string, error) {
+			t.Fatal("InstallPackage should not be called")
+			return "", "", nil
+		},
+		func(
+			domain string,
+			packageName string,
+		) ([]*kademlia.VersionRecord, error) {
+			getVersionChainCalled = true
+			return nil, nil
+		},
+	)
+	kademlia.GetVersionChain("", "")
+	if !getVersionChainCalled {
+		t.Fatalf("GetVersionChain() didn't call the getVersionChain function")
+	}
+}
