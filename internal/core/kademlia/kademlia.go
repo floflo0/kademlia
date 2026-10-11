@@ -72,7 +72,7 @@ func (k *kademlia) join(knownContact *entities.Address) error {
 	if err != nil {
 		return err
 	}
-	//err = k.joinRefresh()
+	err = k.joinRefresh()
 	return err
 }
 
@@ -81,7 +81,14 @@ func (k *kademlia) joinRefresh() error {
 	if len(neighbor) == 0 {
 		return nil
 	}
-	for i, bucket := range k.RoutingTable.getBuckets() {
+	var bucketsBeforeAddedNewOnes []*Bucket
+	for _, bucket := range k.RoutingTable.getBuckets() {
+		b := NewBucket()
+		b.list = bucket.list
+		bucketsBeforeAddedNewOnes = append(bucketsBeforeAddedNewOnes, b)
+	}
+
+	for i, bucket := range bucketsBeforeAddedNewOnes {
 		var bucketContactsID []entities.KademliaID
 		for _, contact := range bucket.GetContacts() {
 			bucketContactsID = append(bucketContactsID, *contact.ID)

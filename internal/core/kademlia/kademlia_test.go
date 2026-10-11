@@ -396,7 +396,7 @@ func Test1000Nodes(t *testing.T) {
 		}
 	})
 
-	timeout := time.After(20 * time.Second)
+	timeout := time.After(120 * time.Second)
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
