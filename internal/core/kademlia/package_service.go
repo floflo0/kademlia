@@ -137,7 +137,11 @@ func (k *kademlia) PublishPackage(
 		return nil, fmt.Errorf("failed to marshal latest pointer: %w", err)
 	}
 
-	if _, err := k.storeData(string(pointerJSON)); err != nil {
+	id := entities.NewKademliaIDFromString(
+		fmt.Sprintf("%s:%s:latest", domain, packageName),
+	)
+	err = k.Store(id, string(pointerJSON))
+	if err != nil {
 		return nil, fmt.Errorf("failed to store latest pointer: %w", err)
 	}
 
@@ -174,65 +178,54 @@ func (k *kademlia) InstallPackage(domain, packageName, version string) (string, 
 	return "", "", fmt.Errorf("%w: version %s not found for %s:%s", ErrPackageNotFound, version, domain, packageName)
 }
 
-// Helper methods to query the CAS store directly
-func (k *kademlia) findLatestPointer(domain, packageName string) (*LatestPointer, error) {
-	if k.dataStore == nil {
-		return nil, ErrPackageNotFound
+func (k *kademlia) findLatestPointer(
+	domain string,
+	packageName string,
+) (*LatestPointer, error) {
+	id := entities.NewKademliaIDFromString(
+		fmt.Sprintf("%s:%s:latest", domain, packageName),
+	)
+	value, _, err := k.GetValue(id.String())
+	if err != nil {
+		return nil, err
 	}
-	var latest *LatestPointer
-	for _, key := range k.dataStore.Keys() {
-		val, err := k.dataStore.Get(key)
-		if err != nil {
-			continue
-		}
-		var ptr LatestPointer
-		if err := json.Unmarshal([]byte(val), &ptr); err == nil && ptr.Tag == "latest-pointer" {
-			if ptr.DomainName == domain && ptr.PackageName == packageName {
-				if latest == nil || compareVersions(ptr.Version, latest.Version) > 0 {
-					latest = &ptr
-				}
-			}
-		}
+	if value == nil {
+		return nil, nil
 	}
-	if latest == nil {
-		return nil, ErrPackageNotFound
+	var latest LatestPointer
+	err = json.Unmarshal([]byte(*value), &latest)
+	if err != nil {
+		return nil, err
 	}
-	return latest, nil
+	return &latest, nil
 }
 
 func (k *kademlia) findVersionRecordByHash(hashStr string) (*VersionRecord, error) {
-	if k.dataStore == nil {
+	value, _, err := k.GetValue(hashStr)
+	if err != nil || value == nil {
 		return nil, ErrPackageNotFound
 	}
-	for _, key := range k.dataStore.Keys() {
-		val, err := k.dataStore.Get(key)
-		if err != nil {
-			continue
-		}
-		var rec VersionRecord
-		if err := json.Unmarshal([]byte(val), &rec); err == nil && rec.Tag == "version-record" {
-			computedHash, _ := rec.Hash()
-			if key.String() == hashStr || computedHash == hashStr {
-				return &rec, nil
-			}
-		}
+	var rec VersionRecord
+	err = json.Unmarshal([]byte(*value), &rec)
+	if err != nil {
+		return nil, err
 	}
-	return nil, ErrPackageNotFound
+	return &rec, nil
 }
 
 func (k *kademlia) findBlobByHash(hashStr string) (string, error) {
-	if k.dataStore == nil {
+	kademliaID, err := entities.NewKademliaID(hashStr)
+	if err != nil {
+		return "", err
+	}
+	value, _, _, err := k.LookupValue(kademliaID)
+	if err != nil {
+		return "", err
+	}
+	if value == nil {
 		return "", ErrPackageNotFound
 	}
-	for _, key := range k.dataStore.Keys() {
-		if key.String() == hashStr {
-			val, err := k.dataStore.Get(key)
-			if err == nil {
-				return val, nil
-			}
-		}
-	}
-	return "", ErrPackageNotFound
+	return *value, nil
 }
 
 // GetVersionChain recovers all the version history in reverse order

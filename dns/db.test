@@ -1,0 +1,15 @@
+$ORIGIN example.test.
+$TTL 60
+
+@ IN SOA ns.example.test. admin.example.test. (
+    2026101201
+    3600
+    900
+    604800
+    60
+)
+
+@  IN NS ns.example.test.
+ns IN A 172.30.1.53
+
+@ IN TXT "8f2a02013a73ace08c7bdaaae75d456a1bdc869f9a5cbe5d768330cff91993ae"

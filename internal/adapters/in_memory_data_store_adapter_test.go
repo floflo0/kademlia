@@ -34,29 +34,6 @@ func TestInMemoryDataStore_Put_Success(t *testing.T) {
 	}
 }
 
-func TestInMemoryDataStore_Put_InvalidHash(t *testing.T) {
-	dataStore := adapters.NewInMemoryDataStore()
-	value := "Hello, World!"
-	invalidKey, err := entities.NewKademliaID(
-		"0000000000000000000000000000000000000000000000000000000000000000",
-	)
-	if err != nil {
-		t.Fatalf("NewKademliaID() returns unexpected error: %v", err)
-	}
-
-	err = dataStore.Put(*invalidKey, value)
-	expectedError := ports.ErrHashMismatch
-	if !errors.Is(err, expectedError) {
-		t.Fatalf(
-			"Put(%q, %q) err = %v; want %v",
-			invalidKey.String(),
-			value,
-			err,
-			expectedError,
-		)
-	}
-}
-
 func TestInMemoryDataStore_Get_NotFound(t *testing.T) {
 	dataStore := adapters.NewInMemoryDataStore()
 	key, err := entities.NewKademliaID(

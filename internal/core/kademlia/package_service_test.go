@@ -4,11 +4,18 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"kademlia/internal/adapters"
+	"kademlia/internal/core/entities"
 	"testing"
 )
 
 func newTestKademliaNode() *kademlia {
+	me := NewContactFromAddress(entities.Address{
+		IP: "127.0.0.1",
+		Port: 8080,
+	})
 	return &kademlia{
+		RoutingTable: NewRoutingTable(me),
+		me: me,
 		dataStore: adapters.NewInMemoryDataStore(),
 	}
 }

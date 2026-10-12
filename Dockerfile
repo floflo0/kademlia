@@ -22,6 +22,7 @@ FROM scratch
 
 WORKDIR /app
 
+COPY --from=builder /app/demo /app/demo
 COPY --from=builder /app/kademlia /app/kademlia
 
 ENTRYPOINT ["./kademlia"]

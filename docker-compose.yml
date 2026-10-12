@@ -1,8 +1,26 @@
 services:
+  dns:
+    image: coredns/coredns:latest
+    command: -conf /etc/coredns/Corefile
+    volumes:
+      - ./dns/Corefile:/etc/coredns/Corefile:ro
+      - ./dns/db.test:/etc/coredns/db.test:ro
+    networks:
+      default:
+        ipv4_address: 172.30.1.53
+    expose:
+      - "53/udp"
+      - "53/tcp"
+
   bootstrap:
     build: .
     tty: true
     stdin_open: true
+    dns:
+      - 172.30.1.53
+    networks:
+      default:
+        ipv4_address: 172.30.1.2
 
   node:
     build: .
@@ -10,8 +28,10 @@ services:
       replicas: 49
     tty: true
     stdin_open: true
+    dns:
+      - 172.30.1.53
     depends_on:
       bootstrap:
         condition: service_started
     command:
-      - --known-contact=172.19.0.2:8080
+      - --known-contact=172.30.1.2:8080

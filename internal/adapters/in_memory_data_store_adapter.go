@@ -38,10 +38,6 @@ func (ds *inMemoryDataStoreAdapter) Put(
 	value string,
 ) error {
 	slog.Info("Put", "key", key.String(), "value", value)
-	expectedKey := entities.NewKademliaIDFromString(value)
-	if !key.Equals(expectedKey) {
-		return ports.ErrHashMismatch
-	}
 
 	ds.mu.Lock()
 	defer ds.mu.Unlock()

@@ -1,0 +1,7 @@
+example.test:53 {
+    template IN TXT example.test {
+        answer "{{ .Name }} 60 IN TXT \"8f2a02013a73ace08c7bdaaae75d456a1bdc869f9a5cbe5d768330cff91993ae\""
+    }
+    log
+    errors
+}
