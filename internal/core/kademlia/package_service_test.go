@@ -10,13 +10,13 @@ import (
 
 func newTestKademliaNode() *kademlia {
 	me := NewContactFromAddress(entities.Address{
-		IP: "127.0.0.1",
+		IP:   "127.0.0.1",
 		Port: 8080,
 	})
 	return &kademlia{
 		RoutingTable: NewRoutingTable(me),
-		me: me,
-		dataStore: adapters.NewInMemoryDataStore(),
+		me:           me,
+		dataStore:    adapters.NewInMemoryDataStore(),
 	}
 }
 
