@@ -76,7 +76,6 @@ func TestJoinProcedure(t *testing.T) {
 	node4.mux.RLock()
 	testedRoutingTable := node4.RoutingTable.FindClosestContacts(node4.me.ID, 3)
 	node4.mux.RUnlock()
-	slog.Info("tested table", "testedRoutingTable", testedRoutingTable)
 
 	for i := range len(expectedClosest) {
 		if *testedRoutingTable[i].ID != *expectedClosest[i].ID {
@@ -162,7 +161,6 @@ func TestLookupContactFunc(t *testing.T) {
 	expectedCandidates := &ContactCandidates{
 		[]Contact{node2.me, node4.me, node3.me},
 	}
-	slog.Info("foo", "bar", candidates.contacts)
 
 	if len(candidates.contacts) != len(expectedCandidates.contacts) {
 		t.Fatalf("Expected number of candidates to be %v, got %v", len(expectedCandidates.contacts), len(candidates.contacts))

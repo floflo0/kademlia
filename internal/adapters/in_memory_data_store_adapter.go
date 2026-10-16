@@ -37,7 +37,7 @@ func (ds *inMemoryDataStoreAdapter) Put(
 	key entities.KademliaID,
 	value string,
 ) error {
-	slog.Info("Put", "key", key.String(), "value", value)
+	slog.Debug("Put", "key", key.String(), "value", value)
 
 	ds.mu.Lock()
 	defer ds.mu.Unlock()

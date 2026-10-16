@@ -22,16 +22,8 @@ func (k *kademlia) SendFindNode(
 	recipient Contact,
 	target *entities.KademliaID,
 ) (*RPCResponseNode, error) {
-	slog.Debug(
-		"Sending FIND_NODE RPC",
-		"key",
-		target.String(),
-		"to",
-		recipient.Address,
-	)
 	connection, errDial := k.network.Dial(recipient.Address)
 	if errDial != nil {
-		slog.Debug("Dial")
 		return nil, errDial
 	}
 	defer connection.Close()
@@ -51,15 +43,20 @@ func (k *kademlia) SendFindNode(
 
 	out, errMarshal := proto.Marshal(&findNodeMessage)
 	if errMarshal != nil {
-		slog.Debug("Marshal")
 		return nil, errMarshal
 	}
 
 	errSend := connection.Send(out)
 	if errSend != nil {
-		slog.Debug("Send")
 		return nil, errSend
 	}
+	slog.Info(
+		"Sending FIND_NODE RPC",
+		"key",
+		target.String(),
+		"to",
+		recipient.Address,
+	)
 
 	recv, errRcv := connection.Receive(config.NetworkTimeoutMiliseconds)
 	if errRcv != nil {

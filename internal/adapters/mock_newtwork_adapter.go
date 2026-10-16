@@ -60,6 +60,10 @@ func (n *MockNetworkAdapter) shouldDrop() bool {
 	return rand.Float32() < n.packetLossPercentage
 }
 
+func (n *MockNetworkAdapter) SetPacketLossPercentage(packetLossPercentage float32) {
+	n.packetLossPercentage = packetLossPercentage
+}
+
 func (n *MockNetworkAdapter) Listen(address entities.Address) (ports.ListenConnection, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()

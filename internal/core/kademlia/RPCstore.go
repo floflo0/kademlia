@@ -16,10 +16,8 @@ func (k *kademlia) SendStore(
 	key *entities.KademliaID,
 	data string,
 ) error {
-	slog.Debug("Sending Store", "recipient ID", recipient.ID)
 	connection, errDial := k.network.Dial(recipient.Address)
 	if errDial != nil {
-		slog.Debug("Dial")
 		return errDial
 	}
 	defer connection.Close()
@@ -47,16 +45,14 @@ func (k *kademlia) SendStore(
 
 	out, errMarshal := proto.Marshal(storeMessage)
 	if errMarshal != nil {
-		slog.Debug("Marshal")
 		return errMarshal
 	}
 
 	errSend := connection.Send(out)
 	if errSend != nil {
-		slog.Debug("Send")
 		return errSend
 	}
-	slog.Info("Store sent to", "recipient", recipient)
+	slog.Info("Sending STORE RPC", "recipientID", recipient.ID)
 
 	return nil
 }

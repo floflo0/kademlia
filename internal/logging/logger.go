@@ -30,7 +30,7 @@ func InitLogger(writer io.Writer) {
 		return attr
 	}
 
-	logger := slog.New(slog.NewTextHandler(writer, &slog.HandlerOptions{
+	logger := slog.New(slog.NewJSONHandler(writer, &slog.HandlerOptions{
 		AddSource:   true,
 		Level:       level,
 		ReplaceAttr: replace,
