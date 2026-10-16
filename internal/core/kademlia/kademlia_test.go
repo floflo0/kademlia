@@ -5,7 +5,6 @@ import (
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
-	"log/slog"
 	"sync"
 	"sync/atomic"
 	"testing"
