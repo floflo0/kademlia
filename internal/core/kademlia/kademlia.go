@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"crypto/ed25519"
+	"encoding/json"
 	"errors"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
@@ -342,12 +343,31 @@ func (k *kademlia) handleStore(
 	data := store.GetData()
 	dataLen := store.GetDataLen()
 
+	// 1. Validate payload length against expected length
 	if len(data) != int(dataLen) {
+		slog.Error("Data length mismatch in Store RPC", "expected", dataLen, "got", len(data))
 		return ErrDataLen
 	}
 
+	// 2. Inspect whether the received data is a LatestPointer structure
+	var pointer LatestPointer
+	if err := json.Unmarshal(data, &pointer); err == nil && pointer.Tag == "latest-pointer" {
+		slog.Debug("Validating incoming LatestPointer in handleStore", "domain", pointer.DomainName, "package", pointer.PackageName)
+
+		// Reject malformed pointers missing essential fields or signatures
+		if pointer.VersionRecordHash == "" || pointer.Signature == "" {
+			slog.Error("Rejected invalid LatestPointer: missing hash or signature", "from", address)
+			return errors.New("invalid store payload: malformed LatestPointer")
+		}
+
+	}
+
+	// 3. Convert key bytes to KademliaID
 	id := (*entities.KademliaID)(key)
+
+	// 4. Store in local DataStore only after all validations pass
 	k.dataStore.Put(*id, string(data))
+	slog.Info("Successfully stored item in local DataStore", "key", id.String(), "from", address)
 
 	return nil
 }

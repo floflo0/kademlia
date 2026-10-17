@@ -1,9 +1,12 @@
 package kademlia
 
 import (
+	"crypto/ed25519"
+	"encoding/json"
 	"kademlia/internal/adapters"
 	"kademlia/internal/core/entities"
 	"kademlia/internal/core/ports"
+	"kademlia/proto/generated"
 	"log/slog"
 	"testing"
 	"time"
@@ -176,7 +179,6 @@ func TestLookupContactFunc(t *testing.T) {
 	node2.Quit()
 	node3.Quit()
 	node4.Quit()
-
 }
 
 func TestLookupValueFunc(t *testing.T) {
@@ -269,4 +271,69 @@ func TestStoreFunc(t *testing.T) {
 		_, err4 := node2.dataStore.Get(*key)
 		return err1 == nil && err2 == nil && err3 == nil && err4 == nil
 	}, 100*time.Millisecond, 5*time.Millisecond)
+}
+
+// TestHandleStoreValidation verifies server-side validation logic for incoming LatestPointer payloads
+func TestHandleStoreValidation(t *testing.T) {
+	net := adapters.NewMockNetworkAdapter(0.0)
+	node := createTestNode(8005, net)
+
+	// 1. Test malformed LatestPointer (missing VersionRecordHash)
+	malformedPointer := LatestPointer{
+		Tag:               "latest-pointer",
+		DomainName:        "example.com",
+		PackageName:       "testpkg",
+		Version:           "1.0.0",
+		VersionRecordHash: "", // Missing hash
+	}
+	dataMalformed, _ := json.Marshal(malformedPointer)
+	keyMalformed := entities.NewKademliaIDFromString(string(dataMalformed))
+
+	storeMsgMalformed := &generated.Store{
+		Key:     keyMalformed[:],
+		Data:    dataMalformed,
+		DataLen: int32(len(dataMalformed)),
+	}
+
+	err := node.handleStore(storeMsgMalformed, entities.Address{IP: "127.0.0.1", Port: 8000})
+	require.Error(t, err, "Expected handleStore to reject malformed LatestPointer")
+
+	// 2. Test valid signed LatestPointer
+	_, privKey, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+
+	validPointer := LatestPointer{
+		Tag:               "latest-pointer",
+		DomainName:        "example.com",
+		PackageName:       "testpkg",
+		Version:           "1.0.0",
+		VersionRecordHash: "abc123hash",
+	}
+	validPointer.Sign(privKey)
+
+	dataValid, _ := json.Marshal(validPointer)
+	keyValid := entities.NewKademliaIDFromString(string(dataValid))
+
+	storeMsgValid := &generated.Store{
+		Key:     keyValid[:],
+		Data:    dataValid,
+		DataLen: int32(len(dataValid)),
+	}
+
+	err = node.handleStore(storeMsgValid, entities.Address{IP: "127.0.0.1", Port: 8000})
+	require.NoError(t, err, "Expected handleStore to accept valid LatestPointer")
+
+	// 3. Test tampered signature
+	validPointer.Signature = "" // Remove signature
+	dataTampered, _ := json.Marshal(validPointer)
+	keyTampered := entities.NewKademliaIDFromString(string(dataTampered))
+
+	storeMsgTampered := &generated.Store{
+		Key:     keyTampered[:],
+		Data:    dataTampered,
+		DataLen: int32(len(dataTampered)),
+	}
+
+	err = node.handleStore(storeMsgTampered, entities.Address{IP: "127.0.0.1", Port: 8000})
+	require.Error(t, err, "Expected handleStore to reject LatestPointer with tampered signature")
 }
