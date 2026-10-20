@@ -23,9 +23,7 @@ func (k *kademlia) storeData(data string) (entities.KademliaID, error) {
 	}
 
 	if k.dataStore != nil {
-		if err := k.dataStore.Put(id, data); err != nil {
-			return id, err
-		}
+		k.dataStore.Put(id, data)
 	}
 	if k.RoutingTable != nil {
 		if _, err := k.Put(data); err != nil {

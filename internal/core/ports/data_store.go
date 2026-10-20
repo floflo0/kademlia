@@ -18,9 +18,7 @@ type DataStore interface {
 	Get(key entities.KademliaID) (string, error)
 
 	// Put stores the value under the given key.
-	// It returns ErrHashMismatch if the key does not match the SHA-256 hash of
-	// the value.
-	Put(key entities.KademliaID, value string) error
+	Put(key entities.KademliaID, value string)
 
 	// Keys returns all keys currently stored in the data store.
 	Keys() []entities.KademliaID

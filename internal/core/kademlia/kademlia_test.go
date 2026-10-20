@@ -198,15 +198,7 @@ func TestLookupValueFunc(t *testing.T) {
 	node3.RoutingTable.AddContact(node5.me)
 	valueTested := "7"
 	key := entities.NewKademliaIDFromString(valueTested)
-	err := node4.dataStore.Put(*key, valueTested)
-	if err != nil {
-		t.Fatalf(
-			"Put(%q, %q) returns unexpected error: %v",
-			key.String(),
-			valueTested,
-			err,
-		)
-	}
+	node4.dataStore.Put(*key, valueTested)
 
 	go node1.Run(nil)
 	go node2.Run(nil)
@@ -275,18 +267,21 @@ func TestStoreFunc(t *testing.T) {
 	}, 100*time.Millisecond, 5*time.Millisecond)
 }
 
-// TestHandleStoreValidation verifies server-side validation logic for incoming LatestPointer payloads
 func TestHandleStoreValidation(t *testing.T) {
-	net := adapters.NewMockNetworkAdapter(0.0)
-	node := createTestNode(8005, net)
+	network := adapters.NewMockNetworkAdapter(0.0)
+	node := createTestNode(8005, network)
+	conn, err := network.Listen(node.me.Address)
+	if err != nil {
+		t.Fatalf("Listen() unexpected error: %v", err)
+	}
+	defer conn.Close()
 
-	// 1. Test malformed LatestPointer (missing VersionRecordHash)
 	malformedPointer := LatestPointer{
 		Tag:               "latest-pointer",
 		DomainName:        "example.com",
 		PackageName:       "testpkg",
 		Version:           "1.0.0",
-		VersionRecordHash: "", // Missing hash
+		VersionRecordHash: "",
 	}
 	dataMalformed, _ := json.Marshal(malformedPointer)
 	keyMalformed := entities.NewKademliaIDFromString(string(dataMalformed))
@@ -297,10 +292,9 @@ func TestHandleStoreValidation(t *testing.T) {
 		DataLen: int32(len(dataMalformed)),
 	}
 
-	err := node.handleStore(storeMsgMalformed, entities.Address{IP: "127.0.0.1", Port: 8000})
+	err = node.handleStore(conn, storeMsgMalformed, entities.Address{IP: "127.0.0.1", Port: 8000})
 	require.Error(t, err, "Expected handleStore to reject malformed LatestPointer")
 
-	// 2. Test valid signed LatestPointer
 	_, privKey, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
 
@@ -322,11 +316,10 @@ func TestHandleStoreValidation(t *testing.T) {
 		DataLen: int32(len(dataValid)),
 	}
 
-	err = node.handleStore(storeMsgValid, entities.Address{IP: "127.0.0.1", Port: 8000})
+	err = node.handleStore(conn, storeMsgValid, entities.Address{IP: "127.0.0.1", Port: 8000})
 	require.NoError(t, err, "Expected handleStore to accept valid LatestPointer")
 
-	// 3. Test tampered signature
-	validPointer.Signature = "" // Remove signature
+	validPointer.Signature = ""
 	dataTampered, _ := json.Marshal(validPointer)
 	keyTampered := entities.NewKademliaIDFromString(string(dataTampered))
 
@@ -336,8 +329,74 @@ func TestHandleStoreValidation(t *testing.T) {
 		DataLen: int32(len(dataTampered)),
 	}
 
-	err = node.handleStore(storeMsgTampered, entities.Address{IP: "127.0.0.1", Port: 8000})
+	err = node.handleStore(conn, storeMsgTampered, entities.Address{IP: "127.0.0.1", Port: 8000})
 	require.Error(t, err, "Expected handleStore to reject LatestPointer with tampered signature")
+}
+
+func TestHandleStoreRollback(t *testing.T) {
+	network := adapters.NewMockNetworkAdapter(0.0)
+	node := createTestNode(8006, network)
+	conn, err := network.Listen(node.me.Address)
+	if err != nil {
+		t.Fatalf("Listen() unexpected error: %v", err)
+	}
+	defer conn.Close()
+
+	_, privKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("GenerateKey() unexpected error: %v", err)
+	}
+
+	v1 := LatestPointer{
+		Tag:               "latest-pointer",
+		DomainName:        "example.com",
+		PackageName:       "testpkg",
+		Version:           "1.0.0",
+		VersionRecordHash: "hash-v1",
+	}
+	v1.Sign(privKey)
+
+	dataV1, err := json.Marshal(v1)
+	if err != nil {
+		t.Fatalf("Marshal() unexpected error: %v", err)
+	}
+	key := entities.NewKademliaIDFromString(string(dataV1))
+
+	msgV1 := &generated.Store{
+		Key:     key[:],
+		Data:    dataV1,
+		DataLen: int32(len(dataV1)),
+	}
+
+	err = node.handleStore(conn, msgV1, entities.Address{IP: "127.0.0.1", Port: 8000})
+	if err != nil {
+		t.Fatalf("handleStore() v1 unexpected error: %v", err)
+	}
+
+	v0 := LatestPointer{
+		Tag:               "latest-pointer",
+		DomainName:        "example.com",
+		PackageName:       "testpkg",
+		Version:           "0.9.0",
+		VersionRecordHash: "hash-v0",
+	}
+	v0.Sign(privKey)
+
+	dataV0, err := json.Marshal(v0)
+	if err != nil {
+		t.Fatalf("Marshal() unexpected error: %v", err)
+	}
+
+	msgV0 := &generated.Store{
+		Key:     key[:],
+		Data:    dataV0,
+		DataLen: int32(len(dataV0)),
+	}
+
+	err = node.handleStore(conn, msgV0, entities.Address{IP: "127.0.0.1", Port: 8000})
+	if err == nil {
+		t.Fatalf("handleStore() expected error on version rollback, got nil")
+	}
 }
 
 func Test1000Nodes(t *testing.T) {
