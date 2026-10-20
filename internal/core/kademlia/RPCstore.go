@@ -53,7 +53,7 @@ func (k *kademlia) SendStore(
 	if errSend != nil {
 		return errSend
 	}
-	slog.Info("Sending STORE RPC", "recipientID", recipient.ID)
+	slog.Info("Sending STORE RPC", "recipientID", recipient.ID.String())
 
 	recv, errRcv := connection.Receive(config.NetworkTimeoutMiliseconds)
 	if errRcv != nil {

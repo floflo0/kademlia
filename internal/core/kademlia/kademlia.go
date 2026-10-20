@@ -384,7 +384,9 @@ func (k *kademlia) handleStore(
 			}
 		}
 
-		if existingPointer != nil {
+		if existingPointer != nil && *existingPointer == pointer {
+			// latest pointer already exists
+		} else if existingPointer != nil {
 			var currentHead *VersionRecord
 			currentHead, _ = k.findVersionRecordByHash(existingPointer.VersionRecordHash)
 			if currentHead == nil {
