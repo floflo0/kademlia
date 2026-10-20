@@ -23,15 +23,7 @@ func TestInMemoryDataStore_Put_Success(t *testing.T) {
 	value := "Hello, World!"
 	key := entities.NewKademliaIDFromString(value)
 
-	err := dataStore.Put(*key, value)
-	if err != nil {
-		t.Errorf(
-			"Put(%q, %q) returns unexpected error: %v",
-			key.String(),
-			value,
-			err,
-		)
-	}
+	dataStore.Put(*key, value)
 }
 
 func TestInMemoryDataStore_Get_NotFound(t *testing.T) {
@@ -66,15 +58,7 @@ func TestInMemoryDataStore_Gut_Success(t *testing.T) {
 		t.Fatalf("NewKademliaID() returns unexpected error: %v", err)
 	}
 
-	err = dataStore.Put(*key, expectedValue)
-	if err != nil {
-		t.Errorf(
-			"Put(%q, %q) returns unexpected error: %v",
-			key.String(),
-			expectedValue,
-			err,
-		)
-	}
+	dataStore.Put(*key, expectedValue)
 
 	value, err := dataStore.Get(*key)
 	if err != nil {
@@ -99,15 +83,7 @@ func TestInMemoryDataStore_Concurrency(t *testing.T) {
 		waitGroup.Go(func() {
 			value := fmt.Sprintf("data %d", i)
 			key := entities.NewKademliaIDFromString(value)
-			err := dataStore.Put(*key, value)
-			if err != nil {
-				t.Errorf(
-					"Put(%q, %q) returns unexpected error: %v",
-					key.String(),
-					value,
-					err,
-				)
-			}
+			dataStore.Put(*key, value)
 		})
 	}
 	waitGroup.Wait()

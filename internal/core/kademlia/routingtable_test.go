@@ -82,3 +82,17 @@ func TestBucketSizeLimit(t *testing.T) {
 		t.Errorf("Bucket size exceeded limit! Expected <= %d, got %d", BUCKET_SIZE, bucketLen)
 	}
 }
+
+func TestRoutingTable_RemoveContactAndGetBuckets(t *testing.T) {
+	me := NewContact(entities.NewRandomKademliaID(), entities.Address{IP: "127.0.0.1", Port: 8000})
+	rt := NewRoutingTable(me)
+
+	c1 := NewContact(entities.NewRandomKademliaID(), entities.Address{IP: "127.0.0.1", Port: 8001})
+	rt.AddContact(c1)
+	rt.RemoveContact(c1)
+
+	buckets := rt.getBuckets()
+	if len(buckets) == 0 {
+		t.Fatalf("expected non-empty buckets")
+	}
+}

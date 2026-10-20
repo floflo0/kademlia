@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"crypto/ed25519"
+	"encoding/json"
 	"errors"
 	"kademlia/config"
 	"kademlia/internal/adapters"
@@ -160,7 +161,7 @@ func (k *kademlia) handleRequest(
 	case *generated.Message_FindValue:
 		err = k.handleFindValue(connection, payload.FindValue, address)
 	case *generated.Message_Store:
-		err = k.handleStore(payload.Store, address)
+		err = k.handleStore(connection, payload.Store, address)
 	}
 	if err != nil {
 		slog.Error("Error while handling request", "err", err)
@@ -331,6 +332,7 @@ func (k *kademlia) handleFindValue(
 }
 
 func (k *kademlia) handleStore(
+	connection ports.ListenConnection,
 	store *generated.Store,
 	address entities.Address,
 ) error {
@@ -350,13 +352,129 @@ func (k *kademlia) handleStore(
 	dataLen := store.GetDataLen()
 
 	if len(data) != int(dataLen) {
+		k.sendStoreResponse(connection, address, ErrDataLen)
 		return ErrDataLen
 	}
 
+	if len(key) != entities.KademliaIDLength {
+		err := errors.New("invalid key length")
+		k.sendStoreResponse(connection, address, err)
+		return err
+	}
+
 	id := (*entities.KademliaID)(key)
+
+	var pointer LatestPointer
+	if err := json.Unmarshal(data, &pointer); err == nil && pointer.Tag == "latest-pointer" {
+		slog.Debug("Validating incoming LatestPointer in handleStore", "domain", pointer.DomainName, "package", pointer.PackageName)
+
+		if pointer.Version == "" || pointer.VersionRecordHash == "" || pointer.Signature == "" {
+			slog.Error("Rejected invalid LatestPointer: missing version, hash or signature", "from", address)
+			err := errors.New("invalid store payload: malformed LatestPointer")
+			k.sendStoreResponse(connection, address, err)
+			return err
+		}
+
+		var existingPointer *LatestPointer
+		val, _, err := k.GetValue(id.String())
+		if err == nil && val != nil {
+			var ep LatestPointer
+			if err := json.Unmarshal([]byte(*val), &ep); err == nil && ep.Tag == "latest-pointer" {
+				existingPointer = &ep
+			}
+		}
+
+		if existingPointer != nil && *existingPointer == pointer {
+			// latest pointer already exists
+		} else if existingPointer != nil {
+			var currentHead *VersionRecord
+			currentHead, _ = k.findVersionRecordByHash(existingPointer.VersionRecordHash)
+			if currentHead == nil {
+				currentHead = &VersionRecord{
+					DomainName:  existingPointer.DomainName,
+					PackageName: existingPointer.PackageName,
+					Version:     existingPointer.Version,
+				}
+			}
+
+			newRecord, _ := k.findVersionRecordByHash(pointer.VersionRecordHash)
+			if newRecord == nil {
+				newRecord = &VersionRecord{
+					DomainName:  pointer.DomainName,
+					PackageName: pointer.PackageName,
+					Version:     pointer.Version,
+					Signature:   pointer.Signature,
+				}
+				if h, err := currentHead.Hash(); err == nil {
+					newRecord.PrevVersionRecordHash = h
+				}
+			}
+
+			var pubKey ed25519.PublicKey
+			dns := adapters.NewDNSAdapter()
+			if key, err := dns.GetPublicKey(pointer.DomainName); err == nil {
+				pubKey = key
+			}
+
+			if pubKey != nil {
+				if err := ValidateNewVersion(newRecord, currentHead, pubKey); err != nil {
+					slog.Error("Rejected invalid LatestPointer: ValidateNewVersion failed", "err", err, "from", address)
+					k.sendStoreResponse(connection, address, err)
+					return err
+				}
+			} else {
+				if compareVersions(pointer.Version, existingPointer.Version) <= 0 {
+					slog.Error("Rejected invalid LatestPointer: version rollback or duplicate",
+						"existingVersion", existingPointer.Version,
+						"newVersion", pointer.Version,
+						"from", address,
+					)
+					k.sendStoreResponse(connection, address, ErrInvalidVersion)
+					return ErrInvalidVersion
+				}
+			}
+		}
+	}
+
 	k.dataStore.Put(*id, string(data))
 
+	k.sendStoreResponse(connection, address, nil)
 	return nil
+}
+
+func (k *kademlia) sendStoreResponse(
+	connection ports.ListenConnection,
+	address entities.Address,
+	storeErr error,
+) {
+	resp := &generated.StoreResponse{
+		Success: storeErr == nil,
+	}
+	if storeErr != nil {
+		resp.Error = storeErr.Error()
+		resp.ErrorMessage = storeErr.Error()
+	}
+
+	responseMsg := &generated.Message{
+		Contact: &generated.Contact{
+			KademliaId: k.me.ID[:],
+			Ip:         k.me.Address.IP,
+			Port:       int32(k.me.Address.Port),
+		},
+		Payload: &generated.Message_StoreResponse{
+			StoreResponse: resp,
+		},
+	}
+
+	payload, err := proto.Marshal(responseMsg)
+	if err != nil {
+		slog.Error("Failed to marshal StoreResponse", "err", err)
+		return
+	}
+
+	if err := connection.SendTo(address, payload); err != nil {
+		slog.Error("Failed to send StoreResponse", "err", err, "to", address)
+	}
 }
 
 func (k *kademlia) handlePing(
@@ -759,7 +877,7 @@ func (k *kademlia) Store(key *entities.KademliaID, data string) error {
 
 	for i := range len(candidates.contacts) {
 		if candidates.contacts[i].ID != nil && candidates.contacts[i].ID.Equals(k.me.ID) {
-			_ = k.dataStore.Put(*key, data)
+			k.dataStore.Put(*key, data)
 			continue
 		}
 		err := k.SendStore(candidates.contacts[i], key, data)

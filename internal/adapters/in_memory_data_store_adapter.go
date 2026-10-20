@@ -36,13 +36,11 @@ func (ds *inMemoryDataStoreAdapter) Get(
 func (ds *inMemoryDataStoreAdapter) Put(
 	key entities.KademliaID,
 	value string,
-) error {
+) {
 	slog.Debug("Put", "key", key.String(), "value", value)
-
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 	ds.data[key] = value
-	return nil
 }
 
 func (ds *inMemoryDataStoreAdapter) Keys() []entities.KademliaID {

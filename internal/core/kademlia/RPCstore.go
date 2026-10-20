@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"errors"
+	"kademlia/config"
 	"kademlia/internal/core/entities"
 	"kademlia/proto/generated"
 	"log/slog"
@@ -52,7 +53,45 @@ func (k *kademlia) SendStore(
 	if errSend != nil {
 		return errSend
 	}
-	slog.Info("Sending STORE RPC", "recipientID", recipient.ID)
+	slog.Info("Sending STORE RPC", "recipientID", recipient.ID.String())
+
+	recv, errRcv := connection.Receive(config.NetworkTimeoutMiliseconds)
+	if errRcv != nil {
+		return errRcv
+	}
+
+	msgRecv := &generated.Message{}
+	if err := proto.Unmarshal(recv, msgRecv); err != nil {
+		return err
+	}
+
+	storeResp := msgRecv.GetStoreResponse()
+	if storeResp == nil {
+		return errors.New("invalid store response from recipient")
+	}
+
+	if !storeResp.GetSuccess() || storeResp.GetError() != "" || storeResp.GetErrorMessage() != "" {
+		errMsg := storeResp.GetError()
+		if errMsg == "" {
+			errMsg = storeResp.GetErrorMessage()
+		}
+		if errMsg == "" {
+			errMsg = "store failed on remote node"
+		}
+		if errMsg == ErrInvalidVersion.Error() {
+			return ErrInvalidVersion
+		}
+		if errMsg == ErrInvalidSignature.Error() {
+			return ErrInvalidSignature
+		}
+		if errMsg == ErrForkDetected.Error() {
+			return ErrForkDetected
+		}
+		if errMsg == ErrDataLen.Error() {
+			return ErrDataLen
+		}
+		return errors.New(errMsg)
+	}
 
 	return nil
 }
