@@ -515,3 +515,9 @@ func Test1000Nodes(t *testing.T) {
 		return
 	}
 }
+
+func TestKademlia_GetBucket(t *testing.T) {
+	network := adapters.NewMockNetworkAdapter(0.0)
+	kademlia := createTestNode(8080, network)
+	kademlia.GetBuckets()
+}
